@@ -12,7 +12,7 @@ namespace Gnomes.Core
         static readonly Dictionary<string, string[]> table = new Dictionary<string, string[]>
         {
             // --- menus ---
-            ["title"] = new[] { "НОСОЧНАЯ БАНДА", "THE SOCK GANG" },
+            ["title"] = new[] { "THE SOCK GANG", "THE SOCK GANG" },
             ["subtitle"] = new[] { "куда на самом деле пропадают носки, очки и пульты", "where socks, glasses and remotes really go" },
             ["solo"] = new[] { "Играть одному", "Play solo" },
             ["host"] = new[] { "Создать кооп", "Host co-op" },
@@ -115,7 +115,7 @@ namespace Gnomes.Core
             ["nightTime"] = new[] { "Ночь", "Night" },
             ["credits"] = new[] { "Об игре", "About" },
             ["creditsText"] = new[] {
-                "«Носочная банда» — игра про гномов из-под крыльца.\n\nМодели связаны из треугольников вручную (ну, скриптами). Шрифты: Balsamiq Sans, Lobster и Rubik Mono One (SIL OFL). Движок: Godot.\n\nНи один носок не пострадал. Ну, почти.\nДед, если ты это читаешь — очки в аквариуме.",
+                "«The Sock Gang» — игра про гномов из-под крыльца.\n\nМодели связаны из треугольников вручную (ну, скриптами). Шрифты: Balsamiq Sans, Lobster и Rubik Mono One (SIL OFL). Движок: Godot.\n\nНи один носок не пострадал. Ну, почти.\nДед, если ты это читаешь — очки в аквариуме.",
                 "\"The Sock Gang\" is a game about the gnomes under the porch.\n\nThe models were knitted from triangles by hand (well, by scripts). Fonts: Balsamiq Sans, Lobster and Rubik Mono One (SIL OFL). Engine: Godot.\n\nNo socks were harmed. Well, almost.\nGrandpa, if you are reading this: your glasses are in the fish tank." },
             ["stampGood"] = new[] { "ОДОБРЕНО НОСКОМ", "SOCK APPROVED" },
             ["stampBad"] = new[] { "ВЫГОВОР", "REPRIMAND" },
@@ -139,7 +139,7 @@ namespace Gnomes.Core
             ["eggPoke20"] = new[] { "Гном: «Всё, я пошёл к Великому Носку жаловаться.»", "Gnome: \"That's it, I'm telling the Great Sock.\"" },
             ["eggLogo3"] = new[] { "Не тяни за нитку, распустишь!", "Don't pull the yarn, it'll unravel!" },
             ["eggLogo7"] = new[] { "Буквы связаны вручную. Семь раз отмерь — один раз распусти.", "The letters are hand-knitted. Measure seven times, unravel once." },
-            ["eggLogo12"] = new[] { "Всё, петля убежала. Теперь это «НОСОЧНАЯ БАНД».", "That's it, a stitch ran away. Now it's \"THE SOCK GAN\"." },
+            ["eggLogo12"] = new[] { "Всё, петля убежала. Теперь это «THE SOCK GAN».", "That's it, a stitch ran away. Now it's \"THE SOCK GAN\"." },
             ["eggWinter"] = new[] { "С Новым годом, банда! Дед повесил носок для подарков. Наш размер!", "Happy holidays, gang! Grandpa hung a stocking for presents. Our size!" },
             ["eggApril"] = new[] { "Первое апреля: дед сегодня особенно подозрительный.", "April Fools' Day: grandpa is extra suspicious today." },
             ["sockSecret0"] = new[] { "Великий Носок шепчет: «Я был левым. Правого унесла стиральная машина. Я помню.»", "The Great Sock whispers: \"I was the left one. The washing machine took the right one. I remember.\"" },

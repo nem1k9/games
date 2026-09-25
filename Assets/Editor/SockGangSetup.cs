@@ -27,10 +27,10 @@ namespace Gnomes.EditorTools
             };
         }
 
-        [MenuItem("Sock Gang/Repair project setup", false, 100)]
+        [MenuItem("The Sock Gang/Repair project setup", false, 100)]
         static void RunFromMenu() => Run(true);
 
-        [MenuItem("Sock Gang/Open main scene", false, 1)]
+        [MenuItem("The Sock Gang/Open main scene", false, 1)]
         static void OpenMain()
         {
             Run(false);
@@ -63,7 +63,7 @@ namespace Gnomes.EditorTools
             if (firstTime && string.IsNullOrEmpty(active.path) && !active.isDirty) EditorSceneManager.OpenScene(ScenePath);
 
             EnsureLegacyInput();
-            if (verbose) Debug.Log("[Sock Gang] Project setup is OK. Press Play to start the game.");
+            if (verbose) Debug.Log("[The Sock Gang]Project setup is OK. Press Play to start the game.");
         }
 
         // ------------------------------------------------------------------ materials
@@ -110,7 +110,7 @@ namespace Gnomes.EditorTools
             }
             if (shader == null)
             {
-                Debug.LogWarning("[Sock Gang] Shader not found for " + name + " (is the project using the Built-in render pipeline?)");
+                Debug.LogWarning("[The Sock Gang]Shader not found for " + name + " (is the project using the Built-in render pipeline?)");
                 return false;
             }
             var m = new Material(shader) { name = name };
@@ -154,7 +154,7 @@ namespace Gnomes.EditorTools
 
         static void ApplyPlayerSettings()
         {
-            PlayerSettings.productName = "Sock Gang";
+            PlayerSettings.productName = "The Sock Gang";
             PlayerSettings.companyName = "SockGang";
             PlayerSettings.runInBackground = true; // the host keeps simulating when alt-tabbed
             PlayerSettings.visibleInBackground = true;
@@ -176,7 +176,7 @@ namespace Gnomes.EditorTools
             p.intValue = 2;
             so.ApplyModifiedProperties();
             AssetDatabase.SaveAssets();
-            if (EditorUtility.DisplayDialog("Sock Gang",
+            if (EditorUtility.DisplayDialog("The Sock Gang",
                     "Игре нужен классический Input Manager. Включён режим \"Both\" — редактор нужно перезапустить.\n\n" +
                     "The game uses the classic Input Manager; Active Input Handling was set to \"Both\". Restart the editor now?",
                     "Перезапустить / Restart", "Позже / Later"))

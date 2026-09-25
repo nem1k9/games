@@ -190,12 +190,19 @@ void fragment() {
             if (gone) title = title.Substring(0, title.Length - 1);
             var box = new VBoxContainer { MouseFilter = Control.MouseFilterEnum.Stop };
             box.AddThemeConstantOverride("separation", -8);
-            var words = title.Split(' ');
-            foreach (var wd in words)
+            // two knitted lines: "THE SOCK" over "GANG"
+            int cut = title.LastIndexOf(' ');
+            var words = cut > 0 ? new[] { title.Substring(0, cut), title.Substring(cut + 1) } : new[] { title };
+            foreach (var line in words)
             {
-                var k = Style.KnitText(wd, size, new Color(0.84f, 0.2f, 0.17f), new Color(0.98f, 0.93f, 0.83f), new Color(0.2f, 0.44f, 0.84f), new Color(0.95f, 0.72f, 0.18f));
-                if (center) k.SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter;
-                box.AddChild(k);
+                // words side by side with a narrow gap: the logo font's own space is a full letter wide
+                // and each knitted word already leaves room for its shadow on the right
+                var row = new HBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
+                row.AddThemeConstantOverride("separation", -size / 8);
+                foreach (var wd in line.Split(' '))
+                    row.AddChild(Style.KnitText(wd, size, new Color(0.84f, 0.2f, 0.17f), new Color(0.98f, 0.93f, 0.83f), new Color(0.2f, 0.44f, 0.84f), new Color(0.95f, 0.72f, 0.18f)));
+                if (center) row.SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter;
+                box.AddChild(row);
             }
             box.Position = pos;
             if (center)

@@ -78,7 +78,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
-          name: "Носочная банда — сборка ${{ github.run_number }}"
+          name: "The Sock Gang — сборка ${{ github.run_number }}"
           target_commitish: ${{ github.sha }}
           make_latest: true
           body: |

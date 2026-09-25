@@ -73,6 +73,7 @@ namespace SockGang.App
             }
             I = this;
             ProcessMode = ProcessModeEnum.Always;
+            SaveStore.MigrateOldFolder();
             Settings = Settings.Load();
             Loc.Current = Settings.Language;
             Engine.MaxFps = 144;

@@ -28,7 +28,7 @@ namespace SockGang.Dev
                 {
                     var ff = new FontFile();
                     ff.Data = System.IO.File.ReadAllBytes(f);
-                    var l = new Label { Text = System.IO.Path.GetFileNameWithoutExtension(f) + ":  НОСОЧНАЯ БАНДА — Играть одному! Ёжик, 123", };
+                    var l = new Label { Text = System.IO.Path.GetFileNameWithoutExtension(f) + ":  THE SOCK GANG — Играть одному! Ёжик, 123", };
                     l.AddThemeFontOverride("font", ff);
                     l.AddThemeFontSizeOverride("font_size", 40);
                     l.AddThemeColorOverride("font_color", new Color(1f, 0.9f, 0.7f));

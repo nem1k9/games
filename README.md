@@ -1,4 +1,4 @@
-# 🧦 Носочная банда (The Sock Gang)
+# 🧦 The Sock Gang
 
 > Куда пропадают вторые носки, очки и пульт от телевизора? Это мы. Гномы из-под крыльца.
 
@@ -114,7 +114,7 @@
 | **Radmin VPN / ZeroTier / Hamachi** (проще всего) | Все заходят в одну виртуальную сеть. Хост сообщает свой виртуальный IP (например, `26.x.x.x`), остальные подключаются к нему. |
 | **Проброс порта** | На роутере хоста пробросить **UDP 27777** на его компьютер и разрешить игру в брандмауэре Windows. Друзья подключаются к внешнему IP хоста. |
 
-Прогресс (материалы, снаряжение, номер ночи) хранится у хоста. На Windows это `%APPDATA%\\Godot\\app_userdata\\Sock Gang\\sockgang_save.txt`, на Linux — `~/.local/share/godot/app_userdata/Sock Gang/`.
+Прогресс (материалы, снаряжение, номер ночи) хранится у хоста. На Windows это `%APPDATA%\\Godot\\app_userdata\\The Sock Gang\\sockgang_save.txt`, на Linux — `~/.local/share/godot/app_userdata/The Sock Gang/`.
 
 ## Статус и как это проверялось
 

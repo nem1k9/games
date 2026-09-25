@@ -1,4 +1,4 @@
-НОСОЧНАЯ БАНДА (The Sock Gang)
+THE SOCK GANG
 
 Запуск: SockGang.exe (Windows) или ./SockGang.x86_64 (Linux).
 
@@ -23,5 +23,5 @@
   Один игрок: «Создать кооп». Остальные: «Подключиться» — игры в локальной сети видны сами,
   или введите IP хоста. Через интернет проще всего Radmin VPN / ZeroTier, либо проброс UDP-порта 27777.
 
-Сохранения и настройки: %APPDATA%\Godot\app_userdata\Sock Gang (Windows).
+Сохранения и настройки: %APPDATA%\Godot\app_userdata\The Sock Gang (Windows).
 Отладка: F3 — информация; хост: F6 ночь, F7 конец ночи, F8/F9 разбудить/уложить деда.
