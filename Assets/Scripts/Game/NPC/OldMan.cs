@@ -440,7 +440,7 @@ namespace Gnomes.NPC
                 {
                     if (Physics.Raycast(eye, (g.HeadPos - eye).normalized, Vector3.Distance(eye, g.HeadPos) - 0.3f, Layers.World, QueryTriggerInteraction.Ignore)) continue;
                 }
-                bool inTorch = torch && torch.enabled && Vector3.Angle(torch.transform.forward, g.Center - torch.transform.position) < torch.spotAngle * 0.5f;
+                bool inTorch = InTorch(g.Center);
                 float vis = (1f - dist / viewDist) * (g.Crouching ? 0.45f : 1f) * (g.Velocity.sqrMagnitude > 1f ? 1.4f : 0.8f) * (inTorch ? 2f : 0.8f);
                 if (!inTorch && !NearLitLamp(w, g.Center)) vis *= 0.55f; // dark rooms are the gang's friend
                 if (H.IsHidden(g)) vis *= 0.15f;
@@ -468,13 +468,14 @@ namespace Gnomes.NPC
             }
         }
 
-        static bool NearLitLamp(GameWorld w, Vector3 p)
+        static bool NearLitLamp(GameWorld w, Vector3 p) => w.IsLit(p);
+
+        /// <summary>Is this point inside the beam of his torch (and the torch is on)?</summary>
+        public bool InTorch(Vector3 p)
         {
-            foreach (var f in w.Furniture)
-                foreach (var l in f.Lights)
-                    if (l != null && l.enabled && l.intensity > 0.1f && (l.transform.position - p).sqrMagnitude < l.range * l.range * 0.36f)
-                        return true;
-            return false;
+            if (!torch || !torch.enabled) return false;
+            var to = p - torch.transform.position;
+            return to.magnitude < torch.range && Vector3.Angle(torch.transform.forward, to) < torch.spotAngle * 0.5f;
         }
 
         void Chase(float dt)

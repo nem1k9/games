@@ -509,8 +509,29 @@ namespace Gnomes.UI
                 GUI.Label(new Rect(pr.x + 12 * u, pr.y + 10 * u, pr.width - 20 * u, 36 * u), $"{Loc.T("pocket")} ({slot.Pocket.Count}/{GearEffects.From(s.Save).PocketSize}): {items}", small);
             }
 
-            // grandpa state
+            // stealth: how loud am I, am I lit?
             var om = w.OldMan;
+            if (om != null && g != null && g.Status == PlayerStatus.Free)
+            {
+                float mul = GearEffects.From(s.Save).FootstepNoiseMul;
+                bool moving = g.Velocity.Flat().sqrMagnitude > 0.5f && g.Grounded;
+                string step;
+                Color sc;
+                if (!moving || g.Crouching) { step = Loc.T(moving ? "stepQuiet" : "stepSilent"); sc = new Color(0.6f, 1f, 0.6f); }
+                else if (g.Sprinting && mul > 0.5f) { step = Loc.T("stepLoud"); sc = new Color(1f, 0.4f, 0.35f); }
+                else if (mul <= 0.5f) { step = Loc.T("stepQuiet"); sc = new Color(0.6f, 1f, 0.6f); }
+                else { step = Loc.T("stepNormal"); sc = new Color(1f, 0.9f, 0.5f); }
+                bool lit = w.IsLit(g.Center) || om.InTorch(g.Center);
+                var nr = new Rect(sw - 434 * u, sh - 108 * u, 420 * u, 36 * u);
+                GUI.Box(nr, GUIContent.none, dark);
+                GUI.color = sc;
+                GUI.Label(new Rect(nr.x + 12 * u, nr.y + 5 * u, 200 * u, 28 * u), Loc.T("steps") + ": " + step, small);
+                GUI.color = lit ? new Color(1f, 0.85f, 0.4f) : new Color(0.6f, 0.7f, 1f);
+                GUI.Label(new Rect(nr.x + 220 * u, nr.y + 5 * u, 190 * u, 28 * u), Loc.T(lit ? "inLight" : "inShadow"), small);
+                GUI.color = Color.white;
+            }
+
+            // grandpa state
             if (om != null)
             {
                 string txt;

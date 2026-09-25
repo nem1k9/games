@@ -285,6 +285,16 @@ namespace Gnomes.World
 
         public bool IsInStash(Vector3 p) => StashZone != null && StashZone.bounds.Contains(p);
 
+        /// <summary>Is a point close to a switched-on lamp (well lit)? Used for stealth.</summary>
+        public bool IsLit(Vector3 p)
+        {
+            foreach (var f in Furniture)
+                foreach (var l in f.Lights)
+                    if (l != null && l.enabled && l.intensity > 0.1f && (l.transform.position - p).sqrMagnitude < l.range * l.range * 0.36f)
+                        return true;
+            return false;
+        }
+
         public static bool ZoneContains(BoxCollider zone, Vector3 worldPos)
         {
             if (zone == null) return false;
