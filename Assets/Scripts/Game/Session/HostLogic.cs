@@ -175,6 +175,8 @@ namespace Gnomes.Session
             if (w != null)
             {
                 foreach (var e in w.Ties.AllAsEvents()) S.SendEventTo(slot, e);
+                foreach (var f in w.Furniture)
+                    if (f.IsLamp) S.SendEventTo(slot, new EventMsg { Type = EvType.Lamp, Id = f.Index, I = f.LightsOn ? 1 : 0 });
                 foreach (var kv in hatOwner) S.SendEventTo(slot, new EventMsg { Type = EvType.PropSpawned, Id = kv.Key, S = "gnomeHat", P = (byte)(S.Players.TryGetValue(kv.Value, out var o) ? o.Hat + 1 : 1), Pos = w.GetProp(kv.Key) != null ? w.GetProp(kv.Key).transform.position.ToCoreV() : V3.zero, Rot = Q4.identity });
             }
         }
@@ -1012,6 +1014,15 @@ namespace Gnomes.Session
                 {
                     if (a.Id >= w.Furniture.Count) return;
                     var f = w.Furniture[a.Id];
+                    if (f.IsLamp)
+                    {
+                        // a good kick at the switch: lights out (or back on)
+                        bool on = !f.LightsOn;
+                        f.SetLights(on);
+                        S.Broadcast(new EventMsg { Type = EvType.Lamp, Id = f.Index, I = on ? 1 : 0 });
+                        w.EmitSound(SoundId.Click, point, 0.9f);
+                        break;
+                    }
                     if (f.Hp > 0 && !f.Broken)
                     {
                         w.EmitSound(SoundId.Clonk, point, 0.8f);

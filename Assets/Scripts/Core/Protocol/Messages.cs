@@ -425,6 +425,7 @@ namespace Gnomes.Core.Protocol
         Tie = 18, // Id = tie id, I = prop A (0 = world), P = unused, S = "propB" (or ""), Pos = world A / local A, Vel = world B / local B, F = length
         Stun = 19, // P = player id, F = seconds
         Untie = 20, // Id = tie id
+        Lamp = 21, // Id = furniture index, I = 1 on / 0 off
     }
 
     public struct EventMsg

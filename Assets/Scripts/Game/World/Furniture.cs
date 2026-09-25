@@ -198,6 +198,14 @@ namespace Gnomes.World
             return true;
         }
 
+        public bool IsLamp => Lights.Count > 0 && Kind.IndexOf("amp", System.StringComparison.Ordinal) >= 0 && Kind != "ceilingLamp";
+        public bool LightsOn => Lights.Count > 0 && Lights[0].enabled;
+
+        public void SetLights(bool on)
+        {
+            foreach (var l in Lights) if (l) l.enabled = on;
+        }
+
         public void SetBroken()
         {
             Broken = true;

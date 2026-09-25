@@ -613,6 +613,9 @@ namespace Gnomes.Session
                 case EvType.Stun:
                     if (e.P == LocalId) LocalGnome.I?.Stun(e.F);
                     break;
+                case EvType.Lamp:
+                    if (!local && w != null && e.Id < w.Furniture.Count) w.Furniture[e.Id].SetLights(e.I != 0);
+                    break;
                 case EvType.Chat:
                     GameApp.I?.Toast(e.S);
                     break;

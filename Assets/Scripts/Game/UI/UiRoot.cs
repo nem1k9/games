@@ -628,7 +628,7 @@ namespace Gnomes.UI
             {
                 GUILayout.Space(6 * u);
                 GUILayout.Label($"{Loc.T("day")} {s.Save.Night}.  {Loc.T("strikes")}: {s.Save.Strikes}/{GameConsts.MaxStrikes}", small);
-                GUILayout.Label(Loc.T("sockTip" + (s.Save.Night % 5)), small);
+                GUILayout.Label(Loc.T("sockTip" + (s.Save.Night % 6)), small);
             }
             GUILayout.FlexibleSpace();
             if (Btn(Loc.T("ok"), 200)) App.SockOpen = false;

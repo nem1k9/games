@@ -45,6 +45,7 @@ namespace Gnomes.NPC
         float nextThink, nextSnore, nextGrumble;
         float patrolTime;
         Mechanism fixTarget;
+        Furniture fixLamp; // a lamp the gang switched off
         bool naturalWakeDone;
         Vector3 lastPosClient;
         Vector3 velClient;
@@ -302,7 +303,8 @@ namespace Gnomes.NPC
                 case St.Patrol:
                     patrolTime += dt;
                     if (fixTarget == null) fixTarget = FindPrankToFix();
-                    if (fixTarget != null)
+                    if (fixTarget == null && fixLamp == null) fixLamp = FindDarkLamp();
+                    if (fixTarget != null || fixLamp != null)
                     {
                         SetState(St.Fix);
                         break;
@@ -440,6 +442,7 @@ namespace Gnomes.NPC
                 }
                 bool inTorch = torch && torch.enabled && Vector3.Angle(torch.transform.forward, g.Center - torch.transform.position) < torch.spotAngle * 0.5f;
                 float vis = (1f - dist / viewDist) * (g.Crouching ? 0.45f : 1f) * (g.Velocity.sqrMagnitude > 1f ? 1.4f : 0.8f) * (inTorch ? 2f : 0.8f);
+                if (!inTorch && !NearLitLamp(w, g.Center)) vis *= 0.55f; // dark rooms are the gang's friend
                 if (H.IsHidden(g)) vis *= 0.15f;
                 detect.TryGetValue(g.PlayerId, out float d0);
                 float d1 = Mathf.Min(1.5f, d0 + vis * dt * 6f);
@@ -463,6 +466,15 @@ namespace Gnomes.NPC
                     lastSeenTime = Time.time;
                 }
             }
+        }
+
+        static bool NearLitLamp(GameWorld w, Vector3 p)
+        {
+            foreach (var f in w.Furniture)
+                foreach (var l in f.Lights)
+                    if (l != null && l.enabled && l.intensity > 0.1f && (l.transform.position - p).sqrMagnitude < l.range * l.range * 0.36f)
+                        return true;
+            return false;
         }
 
         void Chase(float dt)
@@ -572,8 +584,43 @@ namespace Gnomes.NPC
             return null;
         }
 
+        /// <summary>A lamp that is normally on but somebody switched off.</summary>
+        Furniture FindDarkLamp()
+        {
+            foreach (var f in W.Furniture)
+                if (f.IsLamp && !f.LightsOn && f.Placement != null && f.Placement.P("on", 1) > 0.5f) return f;
+            return null;
+        }
+
+        void FixLamp()
+        {
+            if (fixLamp == null || fixLamp.LightsOn)
+            {
+                fixLamp = null;
+                SetState(St.Patrol);
+                return;
+            }
+            var at = fixLamp.transform.position;
+            Go(at, GameConsts.OldManWalk * 1.1f);
+            Look = at + Vector3.up * 3f;
+            if ((transform.position - at).Flat().magnitude < 3.4f || stateTime > 20f)
+            {
+                fixLamp.SetLights(true);
+                S?.Broadcast(new EventMsg { Type = EvType.Lamp, Id = fixLamp.Index, I = 1 });
+                W.EmitSound(SoundId.Click, at + Vector3.up * 3f, 0.8f);
+                W.EmitSound(SoundId.Grumble, Eye, 1f);
+                fixLamp = null;
+                SetState(St.Search);
+            }
+        }
+
         void FixPrank()
         {
+            if (fixTarget == null && fixLamp != null)
+            {
+                FixLamp();
+                return;
+            }
             if (fixTarget == null || !fixTarget.IsOpen)
             {
                 fixTarget = null;

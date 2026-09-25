@@ -113,6 +113,7 @@ namespace Gnomes.Core
             ["sockTip2"] = new[] { "Совет Носка: Кеша молчит под полотенцем. Или за печеньку.", "Sock tip: Kesha stays quiet under a towel. Or for a cookie." },
             ["sockTip3"] = new[] { "Совет Носка: кинь клубок — кот забудет про тебя.", "Sock tip: throw a ball of yarn and the cat forgets about you." },
             ["sockTip4"] = new[] { "Совет Носка: без очков дед слеп как крот, без слухового аппарата — глух как пень.", "Sock tip: without glasses grandpa is blind as a mole, without the hearing aid deaf as a post." },
+            ["sockTip5"] = new[] { "Совет Носка: пни торшер (F) — в темноте дед видит вдвое хуже. Только он пойдёт включать свет обратно.", "Sock tip: kick a lamp (F): grandpa sees half as well in the dark. He will come to switch it back on, though." },
             ["mechOven"] = new[] { "духовка", "oven" },
             ["mechFreezer"] = new[] { "морозилка", "freezer" },
             ["mechFridge"] = new[] { "холодильник", "fridge" },
