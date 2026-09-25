@@ -10,7 +10,8 @@ Markers understood by the game:
 """
 import math
 
-from gnomelib.core import HS, MAT_EMIT, MAT_GLASS, Node
+from gnomelib.core import (HS, MAT_EMIT, MAT_FABRIC, MAT_FUR, MAT_GLASS, MAT_GLOSSY, MAT_HAIR, MAT_KNIT, MAT_LEATHER,
+                           MAT_METAL, MAT_SKIN, MAT_STONE, MAT_WOOD, Node)
 
 # palette
 WOOD_L = 0xc89560
@@ -579,11 +580,12 @@ def safe():
     n.solidb((w - 0.102, h - 0.102, 0.05), (0, 0.051, -d / 2 + 0.025), c)
     n.box((0.3, 0.05, 0.3), (0, h + 0.005, 0), 0xf5f0e4)  # doily on top, of course
     door = mech(n, 'safeDoor', 'safe', 'hinge', (-w / 2, 0, d / 2), 'y', -1.6, handle=(w / 2, h / 2, 0.05))
-    door.boxb((w, h, 0.05), (w / 2, 0, 0), 0x46515a)
-    door.col_boxb((w, h, 0.05), (w / 2, 0, 0))
-    door.cyl(0.08, 0.03, (w / 2, h / 2, 0.04), GOLD, rot=(R90, 0, 0), seg=10)
-    door.cyl(0.02, 0.05, (w / 2, h / 2, 0.06), BLACK, rot=(R90, 0, 0), seg=6)
-    door.box((0.04, 0.12, 0.03), (w - 0.07, h / 2, 0.04), METAL)
+    # the door sits just in front of the body (no shared faces: they would flicker)
+    door.boxb((w - 0.004, h - 0.004, 0.05), (w / 2, 0.002, 0.027), 0x46515a, bevel=0.006)
+    door.col_boxb((w, h, 0.05), (w / 2, 0, 0.027))
+    door.cyl(0.08, 0.03, (w / 2, h / 2, 0.066), GOLD, rot=(R90, 0, 0), seg=20)
+    door.cyl(0.02, 0.05, (w / 2, h / 2, 0.086), BLACK, rot=(R90, 0, 0), seg=10)
+    door.box((0.04, 0.12, 0.03), (w - 0.07, h / 2, 0.066), METAL, bevel=0.005)
     zone(n, 'safeInside', (0, h / 2, 0), (w - 0.1, h - 0.1, d - 0.1))
     surf(n, 0, 0, 0.05, 0, 0.2, 0.2)
     return n

@@ -2,7 +2,8 @@
 import math
 import random
 
-from gnomelib.core import HS, MAT_EMIT, MAT_GLASS, Node
+from gnomelib.core import (HS, MAT_EMIT, MAT_FABRIC, MAT_FUR, MAT_GLASS, MAT_GLOSSY, MAT_HAIR, MAT_KNIT, MAT_LEATHER,
+                           MAT_METAL, MAT_SKIN, MAT_STONE, MAT_WOOD, Node)
 
 LEAF = 0x3f8f45
 LEAF2 = 0x4fa152

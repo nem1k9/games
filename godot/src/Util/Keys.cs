@@ -44,10 +44,13 @@ namespace SockGang
             }
         }
 
+        /// <summary>Keys held down by the automated playtest (no real keyboard in a headless run).</summary>
+        public static readonly HashSet<Key> Simulated = new HashSet<Key>();
+
         public static bool Held(Key k)
         {
             watched.Add(k);
-            return Input.IsPhysicalKeyPressed(k);
+            return Input.IsPhysicalKeyPressed(k) || Simulated.Contains(k);
         }
 
         public static bool Pressed(Key k)

@@ -103,7 +103,7 @@ namespace SockGang.NPC
             (handL ?? (Node3D)this).AddChild(tgo);
             tgo.Position = new Vector3(0, -0.45f, -0.1f);
             tgo.Quaternion = Conv.UEuler(80, 0, 0);
-            torch = new SpotLight3D { SpotAngle = 24f, SpotRange = 34f, LightEnergy = 4f, LightColor = new Color(1f, 0.93f, 0.75f), ShadowEnabled = true, SpotAngleAttenuation = 0.6f };
+            torch = new SpotLight3D { SpotAngle = 24f, SpotRange = 34f, LightEnergy = 4f, LightColor = new Color(1f, 0.93f, 0.75f), ShadowEnabled = true, ShadowBias = 0.08f, ShadowNormalBias = 1.6f, SpotAngleAttenuation = 0.6f };
             tgo.AddChild(torch);
             var body = new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 0.09f, BottomRadius = 0.09f, Height = 0.5f, RadialSegments = 8 }, MaterialOverride = ModelLibrary.TintMaterial(Conv.C8(60, 60, 70)), Rotation = new Vector3(Mathf.Pi / 2, 0, 0) };
             tgo.AddChild(body);

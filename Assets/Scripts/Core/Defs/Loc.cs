@@ -94,6 +94,7 @@ namespace Gnomes.Core
             ["dawn"] = new[] { "КУКАРЕКУ! Рассвет — ночь окончена", "COCK-A-DOODLE-DOO! Dawn — the night is over" },
             ["tied"] = new[] { "Связано!", "Tied!" },
             ["tieHint"] = new[] { "T — привязать нитку сюда", "T — tie the yarn here" },
+            ["climbHint"] = new[] { "W — лезть вверх по нитке, S — вниз, Пробел — спрыгнуть", "W — climb up the yarn, S — down, Space — jump off" },
             ["unscrew"] = new[] { "Удерживай E — открутить крышку", "Hold E — unscrew the lid" },
             ["hatHere"] = new[] { "Колпак гнома: отнеси в корзинку с клубками", "A gnome's hat: bring it to the yarn basket" },
             ["revived"] = new[] { "Гнома перевязали!", "A gnome got re-knitted!" },
@@ -161,8 +162,8 @@ namespace Gnomes.Core
 
             // controls help
             ["controls"] = new[] {
-                "WASD — ходить, Shift — бежать (шумно), Ctrl — красться, Пробел — прыжок\nЛКМ — взять/положить, ПКМ — клубок-крюк (с вещью в руках — швырнуть), колесо — длина нитки, R — подтянуться\nT — привязать нитку, F — пинок, E — использовать/в карман, Q — выложить карманы, G — сонная пыльца, H — свист, V — камера, Tab — проказы",
-                "WASD — move, Shift — run (noisy), Ctrl — sneak, Space — jump\nLMB — pick up/drop, RMB — yarn hook (holding an item: throw), wheel — yarn length, R — reel in\nT — tie the yarn, F — kick, E — use/pocket, Q — empty pockets, G — sleep dust, H — whistle, V — camera, Tab — pranks" },
+                "WASD — ходить, Shift — бежать (шумно), Ctrl — красться, Пробел — прыжок\nЛКМ — взять/положить, ПКМ — клубок-крюк (с вещью в руках — швырнуть), на нитке: W/S — лезть вверх/вниз\nT — привязать нитку, F — пинок, E — использовать/в карман, Q — выложить карманы, G — сонная пыльца, H — свист, V — камера, Tab — проказы",
+                "WASD — move, Shift — run (noisy), Ctrl — sneak, Space — jump\nLMB — pick up/drop, RMB — yarn hook (holding an item: throw), on the yarn: W/S — climb up/down\nT — tie the yarn, F — kick, E — use/pocket, Q — empty pockets, G — sleep dust, H — whistle, V — camera, Tab — pranks" },
         };
 
         public static string T(string key)

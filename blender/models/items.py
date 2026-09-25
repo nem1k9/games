@@ -5,7 +5,8 @@ Items without COL_ markers get a convex-hull collider at runtime; items with COL
 """
 import math
 
-from gnomelib.core import HS, MAT_EMIT, MAT_GLASS, Node
+from gnomelib.core import (HS, MAT_EMIT, MAT_FABRIC, MAT_FUR, MAT_GLASS, MAT_GLOSSY, MAT_HAIR, MAT_KNIT, MAT_LEATHER,
+                           MAT_METAL, MAT_SKIN, MAT_STONE, MAT_WOOD, Node)
 
 WHITE = 0xf1efe8
 METAL = 0xb9c0c8
@@ -407,11 +408,15 @@ def slipper():
 
 
 def sock():
+    """A lonely sock (the gnomes' favourite loot): knitted, a bit flat, heel and toe in another colour."""
     n = item('sock')
-    n.box((0.06, 0.02, 0.16), (0, 0, -0.02), 0x9aa8c4)
-    n.box((0.06, 0.021, 0.06), (0.02, 0, 0.07), 0x9aa8c4, rot=(0, -0.6, 0))
-    n.box((0.061, 0.022, 0.03), (0, 0, -0.085), RED)
-    n.cyl(0.01, 0.022, (0.005, 0, -0.02), 0xf0c0a0, seg=6)  # hole with a toe patch
+    n.detail = 0.6
+    body, heel = 0x9aa8c4, RED
+    n.sweep([(0, 0, -0.1), (0, 0, 0.0), (0.008, 0, 0.045), (0.035, 0, 0.085), (0.055, 0, 0.115)],
+            [0.03, 0.029, 0.028, 0.026, 0.021], body, kind=MAT_KNIT, seg=16, steps=4, start='open', end='dome',
+            squash=lambda t: (0.42, 1.0), ribs=lambda t: 0.05 if t < 0.2 else 0.0, rim=(0.004, 0.05, 0x3a3440),
+            paint=lambda t, a: heel if (t > 0.86 or 0.5 < t < 0.64) else (0xf3ead6 if 0.2 < t < 0.26 else body))
+    n.blob(0.011, (0.012, 0.011, -0.02), 0xf0c0a0, kind=MAT_SKIN, detail=1, scale=(1, 0.3, 1))  # hole: a toe peeks out
     return n
 
 

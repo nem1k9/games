@@ -48,7 +48,7 @@ namespace SockGang.App
             }
         }
 
-        public bool GameplayInput => Screen == AppScreen.Playing && !Paused && !CraftOpen && !SockOpen && !ChatOpen && !Loading && GetWindow().HasFocus();
+        public bool GameplayInput => Screen == AppScreen.Playing && !Paused && !CraftOpen && !SockOpen && !ChatOpen && !Loading && (GetWindow().HasFocus() || Keys.Simulated.Count > 0);
 
         public static Dictionary<string, string> UserArgs()
         {
@@ -66,7 +66,7 @@ namespace SockGang.App
         public override void _Ready()
         {
             Args = UserArgs();
-            if (Args.ContainsKey("shot-model") || Args.ContainsKey("shot-level"))
+            if (Args.ContainsKey("shot-model") || Args.ContainsKey("shot-level") || Args.ContainsKey("dump-tex"))
             {
                 AddChild(new Dev.ShotHarness { Args = Args });
                 return;

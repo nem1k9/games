@@ -59,6 +59,8 @@ namespace SockGang.Players
         public ushort CarriedProp => mode == ArmMode.HoldProp ? heldProp : (ushort)0;
         public float Grip01 => grip / GameConsts.GripTime;
         public bool OnYarn => mode == ArmMode.Climb || mode == ArmMode.YarnProp;
+        /// <summary>+1 climbing up the yarn, -1 sliding down, 0 hanging still.</summary>
+        public int Climbing { get; private set; }
         public float YarnLength => yarnLen;
         public float YarnRange => gear.YarnRange;
         public bool Stunned => Clock.Now < stunnedUntil;
@@ -89,7 +91,7 @@ namespace SockGang.Players
         {
             camPivot = new Node3D { Name = "CamPivot", TopLevel = true };
             AddChild(camPivot);
-            Cam = new Camera3D { Name = "GnomeCamera", Near = 0.03f, Far = 400f, Current = true };
+            Cam = new Camera3D { Name = "GnomeCamera", Near = 0.06f, Far = 300f, Current = true }; // a larger near plane keeps depth precision for far walls
             camPivot.AddChild(Cam);
             var listener = new AudioListener3D();
             Cam.AddChild(listener);
@@ -181,6 +183,8 @@ namespace SockGang.Players
                 else if (mode == ArmMode.HoldProp) holdDist = Mathf.Clamp(holdDist + wheel * 0.15f, 0.55f, 1.6f);
             }
             if (OnYarn && Keys.Held(Key.R)) yarnLen = Mathf.Max(GameConsts.YarnMin, yarnLen - 3f * dt);
+            Climbing = 0;
+            if (mode == ArmMode.Climb) ClimbYarn(dt);
 
             // hands: LMB picks up / drops
             if (Keys.MouseDown(0))
@@ -344,7 +348,7 @@ namespace SockGang.Players
             }
             var targetH = wish * speed;
             var h = v.Flat();
-            if (mode == ArmMode.Climb && !Grounded) v += wish * 16f / GameConsts.GnomeMass * dt; // swing
+            if (mode == ArmMode.Climb && !Grounded) v += (Climbing != 0 ? Right * ix : wish) * 16f / GameConsts.GnomeMass * dt; // swing (W/S climb instead)
             else if (Grounded)
             {
                 h = GMath.MoveTowards(h, targetH, GameConsts.GroundAccel * dt);
@@ -608,6 +612,14 @@ namespace SockGang.Players
             Sfx.I?.Play(SoundId.Grab, hit.Point, 0.6f);
         }
 
+        /// <summary>Test hook: throw the yarn where the gnome looks; true if it caught something to climb.</summary>
+        public bool DebugShootYarn()
+        {
+            yarnCooldownUntil = 0;
+            ShootYarn();
+            return mode == ArmMode.Climb;
+        }
+
         void DetachYarn()
         {
             if (mode == ArmMode.YarnProp) S?.SendAction(new ActionMsg { Type = ActionType.Release, Id = heldProp });
@@ -665,18 +677,55 @@ namespace SockGang.Players
             hookLocal = Vector3.Zero;
         }
 
+        /// <summary>
+        /// Rope climbing: W climbs up the yarn (also from the ground when it hangs from above), S slides down,
+        /// A/D swing. At the top the gnome pulls himself over the edge onto whatever the hook caught.
+        /// </summary>
+        void ClimbYarn(float dt)
+        {
+            var toAnchor = HookWorld - HandPos;
+            float dist = toAnchor.Length();
+            bool above = toAnchor.Y > 0.4f && toAnchor.Y > dist * 0.5f;
+            if (Keys.Held(Key.W) && (!Grounded || above)) Climbing = 1;
+            else if (Keys.Held(Key.S) && !Grounded) Climbing = -1;
+            if (Climbing != 0)
+            {
+                // take up the slack first so the first step already lifts
+                float len = Climbing > 0 ? Mathf.Min(yarnLen, dist + 0.05f) : yarnLen;
+                yarnLen = Mathf.Clamp(len - Climbing * GameConsts.ClimbSpeed * gear.StrengthMul * dt, GameConsts.YarnMin, gear.YarnRange + 1f);
+            }
+            if (Climbing > 0 && dist < 0.85f && FindLedge(out _)) YarnJump();
+        }
+
+        /// <summary>A walkable top surface just past the hook (a shelf, a table top) the gnome can climb onto.</summary>
+        bool FindLedge(out Vector3 top)
+        {
+            var anchor = HookWorld;
+            var fwd = (anchor - GlobalPosition).Flat();
+            if (fwd.LengthSquared() < 0.01f) fwd = Forward;
+            fwd = fwd.Normalized();
+            var probe = anchor + fwd * 0.45f + Vector3.Up * 1.8f;
+            top = Vector3.Zero;
+            if (Phys.Raycast(probe, Vector3.Down, 2.6f, Layers.Solid | Layers.Prop, out var hit) && hit.Normal.Y > 0.6f && hit.Point.Y > GlobalPosition.Y + 0.2f)
+            {
+                top = hit.Point;
+                return true;
+            }
+            return false;
+        }
+
         void YarnJump()
         {
             var anchor = HookWorld;
             var fwd = (anchor - GlobalPosition).Flat();
             if (fwd.LengthSquared() < 0.01f) fwd = Forward;
             fwd = fwd.Normalized();
+            bool ledge = FindLedge(out var topPoint);
             DetachYarn();
             var v = Velocity;
-            var probe = anchor + fwd * 0.45f + Vector3.Up * 1.8f;
-            if (Phys.Raycast(probe, Vector3.Down, 2.6f, Layers.Solid | Layers.Prop, out var top) && top.Normal.Y > 0.6f && top.Point.Y > GlobalPosition.Y + 0.2f)
+            if (ledge)
             {
-                float h = top.Point.Y + 0.25f - GlobalPosition.Y;
+                float h = topPoint.Y + 0.25f - GlobalPosition.Y;
                 float vy = Mathf.Sqrt(2f * GrabPhysics.Gravity * Mathf.Max(0.1f, h)) + 0.4f;
                 v = Vector3.Up * Mathf.Min(vy, 11f) + fwd * 3.2f;
             }
@@ -729,7 +778,7 @@ namespace SockGang.Players
                     Prompt = (p.Def.HasTag("gnomeHat") ? Loc.T("hatHere") : Loc.T("grab") + ": " + p.Def.Name(Loc.Current)) + (p.Def.Has(ItemFlags.Heavy) ? " (!)" : "");
                     return;
                 }
-                if (OnYarn) Prompt = Loc.T("tieHint");
+                if (OnYarn) Prompt = mode == ArmMode.Climb ? Loc.T("climbHint") : Loc.T("tieHint");
             }
             if (W.Kind == LevelKind.House && GlobalPosition.DistanceTo(W.GoHomePoint) < 3.5f)
             {

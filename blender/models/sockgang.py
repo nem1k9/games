@@ -4,7 +4,8 @@ Authored in METRES (k = HS) unless noted."""
 import math
 import random
 
-from gnomelib.core import (HS, MAT_EMIT, MAT_FABRIC, MAT_GLASS, MAT_GLOSSY, MAT_HAIR, MAT_KNIT, MAT_METAL, MAT_TINT,
+from gnomelib.core import (HS, MAT_EMIT, MAT_FABRIC, MAT_FUR, MAT_GLASS, MAT_GLOSSY, MAT_HAIR, MAT_KNIT, MAT_LEATHER,
+                           MAT_METAL, MAT_SKIN, MAT_STONE, MAT_TINT, MAT_WOOD,
                            Node)
 
 R90 = math.pi / 2
@@ -134,13 +135,54 @@ def great_sock():
 # ------------------------------------------------------------------ the village (hub)
 
 def thimble_house(n, x, z, s=1.0, color=0xb9c0c8):
-    """An upside-down thimble with a door and a window."""
-    n.lathe([(0.16 * s, 0.0), (0.155 * s, 0.2 * s), (0.13 * s, 0.3 * s), (0.08 * s, 0.34 * s), (0.0, 0.35 * s)], (x, 0, z), color, seg=12)
-    for k in range(4):
-        n.torus(0.157 * s - k * 0.004, 0.006, (x, 0.04 * s + k * 0.05 * s, z), 0x8e969f, seg=12, tseg=3)
-    n.boxb((0.09 * s, 0.14 * s, 0.02), (x, 0, z + 0.155 * s), 0x7a4a2a)
-    n.cyl(0.03 * s, 0.01, (x + 0.07 * s, 0.22 * s, z + 0.14 * s), 0xffe39a, rot=(R90, 0, 0), seg=8, kind=MAT_EMIT)
+    """An upside-down thimble with a round-topped door and a glowing window."""
+    n.lathe([(0.16 * s, 0.0), (0.157 * s, 0.2 * s), (0.135 * s, 0.3 * s), (0.09 * s, 0.338 * s), (0.0, 0.35 * s)],
+            (x, 0, z), color, seg=28, kind=MAT_METAL)
+    # the dimples of a thimble: little dents in rows
+    for row in range(3):
+        yy = 0.24 * s + row * 0.028 * s
+        rr = 0.148 * s - row * 0.012 * s
+        for k in range(14 - row * 3):
+            a = (k + row * 0.5) / (14 - row * 3) * 2 * math.pi
+            n.blob(0.008 * s, (x + math.cos(a) * rr, yy, z + math.sin(a) * rr), 0x8e969f, kind=MAT_METAL, detail=1)
+    for k in range(2):
+        n.torus(0.158 * s - k * 0.002, 0.006, (x, 0.03 * s + k * 0.035 * s, z), 0x8e969f, seg=28, tseg=4)
+    # round-topped wooden door on the front
+    dz = z + 0.158 * s
+    n.box((0.09 * s, 0.1 * s, 0.02), (x, 0.05 * s, dz), 0x7a4a2a, kind=MAT_WOOD, bevel=0.004)
+    n.cyl(0.045 * s, 0.02, (x, 0.1 * s, dz), 0x7a4a2a, rot=(R90, 0, 0), seg=14, kind=MAT_WOOD)
+    n.blob(0.008 * s, (x + 0.025 * s, 0.06 * s, dz + 0.014), GOLD, kind=MAT_METAL, detail=1)
+    # glowing round window
+    n.torus(0.03 * s, 0.006, (x + 0.075 * s, 0.22 * s, z + 0.14 * s), 0x7a4a2a, rot=(R90, 0, -0.45), seg=14, tseg=4)
+    n.cyl(0.028 * s, 0.01, (x + 0.075 * s, 0.22 * s, z + 0.138 * s), 0xffe39a, rot=(R90, 0, -0.45), seg=14, kind=MAT_EMIT)
     n.col_boxb((0.3 * s, 0.34 * s, 0.3 * s), (x, 0, z))
+
+
+def moss_clump(n, rng, x, z, size):
+    """A soft mound of moss: a few squashed fuzzy blobs sunk into the ground."""
+    for k in range(rng.randint(3, 5)):
+        a, d = rng.uniform(0, 6.28), rng.uniform(0, size * 0.6)
+        r = size * rng.uniform(0.35, 0.6)
+        n.blob(r, (x + math.cos(a) * d, -r * 0.25, z + math.sin(a) * d), rng.choice([0x3f6a2c, 0x4a7a33, 0x557f38]),
+               scale=(1.0, 0.62, 1.0), kind=MAT_FUR, detail=2, wonk=r * 0.08)
+
+
+def fly_agaric(n, x, z, s, cap):
+    n.sweep([(x, 0.0, z), (x, 0.05 * s, z), (x, 0.08 * s, z)], [0.018 * s, 0.014 * s, 0.013 * s], 0xf3ead6,
+            kind=MAT_SKIN, seg=10, steps=2, start='flat', end='flat')
+    n.blob(0.045 * s, (x, 0.085 * s, z), cap, scale=(1, 0.55, 1), kind=MAT_GLOSSY, detail=2)
+    for k in range(5):
+        a = k * 1.3
+        n.blob(0.007 * s, (x + math.cos(a) * 0.028 * s, 0.105 * s, z + math.sin(a) * 0.028 * s), 0xfff8ee,
+               kind=MAT_GLOSSY, detail=1, scale=(1, 0.5, 1))
+
+
+def little_sock(n, x, y, z, color, heel):
+    """A small knitted sock hanging from a peg (drying on the washing line)."""
+    n.sweep([(x, y, z), (x, y - 0.08, z), (x, y - 0.115, z + 0.01), (x + 0.012, y - 0.125, z + 0.05)],
+            [0.024, 0.023, 0.022, 0.017], color, kind=MAT_KNIT, seg=12, steps=3, start='open', end='dome',
+            ribs=lambda t: 0.06 if t < 0.2 else 0.0, rim=(0.006, 0.02, 0x5a3a2a),
+            paint=lambda t, a: heel if t > 0.8 or (0.52 < t < 0.68) else (0xf3ead6 if 0.2 < t < 0.27 else color))
 
 
 def village():
@@ -153,7 +195,9 @@ def village():
     n.col_boxb((W + 2, 0.4, D + 2), (0, -0.4, 0))
     for i in range(14):
         x, z = rng.uniform(-3.2, 3.2), rng.uniform(-2.2, 2.2)
-        n.cyl(rng.uniform(0.2, 0.5), 0.01, (x, 0.003, z), MOSS, seg=7, wonk=0.03)
+        if abs(x) < 0.45 and z > -1.4:
+            continue  # keep the button path clear
+        moss_clump(n, rng, x, z, rng.uniform(0.12, 0.28))
     # porch deck overhead (planks with moonlit gaps)
     x = -W / 2
     while x < W / 2:
@@ -190,21 +234,24 @@ def village():
     n.boxb((0.38, 0.1, 0.26), (-1.4, 0.14, 1.7), 0x3a6ac0)
     n.boxb((0.08, 0.1, 0.02), (-1.4, 0, 1.83), 0x5a3a2a)
     # spool table with bottle-cap stools
-    n.cylb(0.12, 0.16, (1.0, 0, 0.9), WOOD_L, seg=10)
-    n.cylb(0.1, 0.12, (1.0, 0.02, 0.9), 0xd8342c, seg=10)  # thread on the spool
-    n.cylb(0.16, 0.02, (1.0, 0.16, 0.9), WOOD_L, seg=10)
+    n.cylb(0.16, 0.02, (1.0, 0.0, 0.9), WOOD_L, seg=22)
+    n.cylb(0.1, 0.14, (1.0, 0.02, 0.9), 0xd8342c, seg=22, kind=MAT_KNIT)  # thread on the spool
+    n.cylb(0.16, 0.02, (1.0, 0.16, 0.9), WOOD_L, seg=22)
     n.col_boxb((0.3, 0.18, 0.3), (1.0, 0, 0.9))
     for a in (0.3, 2.4, 4.4):
         cx, cz = 1.0 + math.cos(a) * 0.3, 0.9 + math.sin(a) * 0.3
-        n.cylb(0.06, 0.03, (cx, 0, cz), [RED, 0x2f6fd6, GOLD][int(a) % 3], seg=12)
+        n.lathe([(0.0, 0.0), (0.06, 0.0), (0.062, 0.028), (0.055, 0.032), (0.0, 0.032)], (cx, 0, cz),
+                [RED, 0x2f6fd6, GOLD][int(a) % 3], seg=20, kind=MAT_METAL)  # bottle-cap stools
     n.cyl(0.02, 0.03, (1.0, 0.195, 0.9), 0xf3ead6, seg=8)  # tiny cup (a bead)
     # button path from the tunnel to the Great Sock
     for i in range(9):
         z = 2.1 - i * 0.42
         col = YARN_COLS[i % len(YARN_COLS)]
-        n.cyl(0.07, 0.012, (0.12 * math.sin(i * 0.9), 0.006, z), col, seg=10)
+        bx = 0.12 * math.sin(i * 0.9)
+        n.lathe([(0.0, 0.0), (0.07, 0.0), (0.072, 0.008), (0.066, 0.014), (0.03, 0.01), (0.0, 0.01)], (bx, 0.0, z), col,
+                seg=20, kind=MAT_GLOSSY)
         for hx, hz in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
-            n.cyl(0.008, 0.014, (0.12 * math.sin(i * 0.9) + hx * 0.02, 0.006, z + hz * 0.02), BLACK, seg=4)
+            n.cyl(0.008, 0.004, (bx + hx * 0.02, 0.011, z + hz * 0.02), 0x2a2a2a, seg=8, kind=MAT_GLOSSY)
     # washing line with drying socks between two posts
     for x in (-2.8, -0.9):
         n.solidb((0.03, 0.45, 0.03), (x, 0, -1.9), WOOD_M)
@@ -212,57 +259,85 @@ def village():
     for i in range(5):
         x = -2.6 + i * 0.36
         c = YARN_COLS[(i * 2) % len(YARN_COLS)]
-        n.boxb((0.05, 0.12, 0.02), (x, 0.3, -1.9), c)
-        n.boxb((0.07, 0.03, 0.02), (x + 0.015, 0.29, -1.9), c)
-        n.box((0.012, 0.03, 0.01), (x, 0.43, -1.9), WOOD_L)  # peg
+        little_sock(n, x, 0.42, -1.9, c, YARN_COLS[(i * 2 + 3) % len(YARN_COLS)])
+        n.box((0.012, 0.035, 0.012), (x, 0.435, -1.9), WOOD_L)  # peg
     # candle-stub lanterns
     for (x, z) in ((-1.7, -0.6), (1.8, -0.4), (-0.6, 1.2), (2.4, 1.5)):
-        n.cylb(0.035, 0.07, (x, 0, z), CREAM, seg=8)
-        n.cone(0.014, 0.035, (x, 0.09, z), 0xffc040, seg=5, kind=MAT_EMIT)
+        n.lathe([(0.0, 0.0), (0.035, 0.0), (0.035, 0.06), (0.03, 0.07), (0.0, 0.068)], (x, 0, z), CREAM, seg=16,
+                kind=MAT_GLOSSY)
+        n.blob(0.01, (x + 0.03, 0.05, z + 0.01), CREAM, kind=MAT_GLOSSY, detail=1, scale=(0.6, 1.6, 0.6))  # wax drip
+        n.sweep([(x, 0.07, z), (x, 0.085, z)], [0.003, 0.003], 0x2a2a2a, seg=4, steps=1)  # wick
+        n.blob(0.013, (x, 0.1, z), 0xffc040, kind=MAT_EMIT, detail=2, scale=(0.8, 1.6, 0.8))
         marker_light(n, 'candle%d' % int((x + 3) * 10), (x, 0.14, z), 0xffb060, 2.4, 1.1)
-    # mushrooms & pebbles
+    # fly agarics
     for i in range(10):
         x, z = rng.uniform(-3.2, 3.2), rng.uniform(-2.2, 2.2)
         if abs(x) < 0.5 and z > -1.5:
             continue
-        s = rng.uniform(0.5, 1.0)
-        n.cylb(0.015 * s, 0.07 * s, (x, 0, z), 0xf3ead6, seg=5)
-        n.sphere(0.04 * s, (x, 0.07 * s, z), rng.choice([0xd8342c, 0xc98a47, 0xe2b21e]), scale=(1, 0.55, 1), seg=7, rings=4)
+        fly_agaric(n, x, z, rng.uniform(0.7, 1.2), rng.choice([0xd8342c, 0xc98a47, 0xe2b21e]))
     n.marker('SPAWN', 'center', (0, 0.05, 1.2), size=(1, 1, 1), scale_size=False)
     marker_light(n, 'moon', (0, H - 0.05, 0), 0x8fa8ff, 6, 0.5)
     return n
 
 
+def yarn_ball(n, x, y, z, r, color, rng):
+    n.blob(r, (x, y, z), color, kind=MAT_KNIT, detail=3)
+    for k in range(4):  # a few loose strands wound around it
+        tilt, spin = rng.uniform(0, math.pi), rng.uniform(0, math.pi)
+        pts = []
+        for i in range(13):
+            a = i / 12 * 2 * math.pi
+            px, py = math.cos(a) * r * 1.02, math.sin(a) * r * 1.02
+            # rotate the circle by tilt around X then spin around Y
+            py, pz = py * math.cos(tilt), py * math.sin(tilt)
+            px, pz = px * math.cos(spin) - pz * math.sin(spin), px * math.sin(spin) + pz * math.cos(spin)
+            pts.append((x + px, y + py, z + pz))
+        n.sweep(pts, [r * 0.07] * len(pts), color, kind=MAT_KNIT, seg=6, steps=2, start='flat', end='flat')
+
+
 def knitting_corner():
     n = mk('knittingCorner')
+    n.detail = 0.5
+    rng = random.Random(2)
     # tomato pincushion with pins
-    n.sphere(0.16, (0, 0.13, 0), 0xd8342c, scale=(1, 0.8, 1), seg=10, rings=7)
+    n.blob(0.16, (0, 0.13, 0), 0xd8342c, scale=(1, 0.78, 1), kind=MAT_FABRIC, detail=3)
+    for k in range(6):  # the tomato's segments are stitched grooves
+        a = k / 6 * 2 * math.pi
+        n.sweep([(math.cos(a) * 0.02, 0.255, math.sin(a) * 0.02), (math.cos(a) * 0.13, 0.2, math.sin(a) * 0.13),
+                 (math.cos(a) * 0.165, 0.12, math.sin(a) * 0.165), (math.cos(a) * 0.13, 0.03, math.sin(a) * 0.13)],
+                [0.006] * 4, 0xa82a22, kind=MAT_FABRIC, seg=5, steps=3)
     for k in range(5):
         a = k * 1.25
-        n.box((0.05, 0.02, 0.02), (math.cos(a) * 0.04, 0.24, math.sin(a) * 0.04), 0x3aa845, rot=(0, -a, 0.3))
-    rng = random.Random(2)
+        n.sweep([(0, 0.25, 0), (math.cos(a) * 0.05, 0.265, math.sin(a) * 0.05), (math.cos(a) * 0.09, 0.25, math.sin(a) * 0.09)],
+                [0.018, 0.014, 0.004], 0x3aa845, kind=MAT_FABRIC, seg=6, steps=2, squash=lambda t: (1.0, 0.35))
     for k in range(8):
         a, e = rng.uniform(0, 6.28), rng.uniform(0.3, 1.2)
         d = (math.cos(a) * math.cos(e), math.sin(e), math.sin(a) * math.cos(e))
-        base = (d[0] * 0.14, 0.13 + d[1] * 0.11, d[2] * 0.14)
-        n.cyl(0.003, 0.12, (base[0] + d[0] * 0.05, base[1] + d[1] * 0.05, base[2] + d[2] * 0.05), 0xd0d4da, rot=(math.atan2(d[2], d[1]) if False else -e + R90, 0, 0), seg=4)
-        n.sphere(0.012, (base[0] + d[0] * 0.1, base[1] + d[1] * 0.1, base[2] + d[2] * 0.1), YARN_COLS[k % len(YARN_COLS)], seg=5, rings=3)
+        base = (d[0] * 0.13, 0.13 + d[1] * 0.1, d[2] * 0.13)
+        tip = (base[0] + d[0] * 0.1, base[1] + d[1] * 0.1, base[2] + d[2] * 0.1)
+        n.sweep([base, tip], [0.003, 0.003], 0xd0d4da, kind=MAT_METAL, seg=5, steps=1, start='flat', end='flat')
+        n.blob(0.013, tip, YARN_COLS[k % len(YARN_COLS)], kind=MAT_GLOSSY, detail=2)
     n.col_boxb((0.34, 0.26, 0.34))
     # yarn balls with crossed knitting needles
-    for i, (x, z) in enumerate(((0.35, 0.1), (0.45, -0.12), (0.28, -0.2))):
-        n.sphere(0.07, (x, 0.07, z), YARN_COLS[i + 2], ico=1, wonk=0.004)
-    n.cyl(0.006, 0.35, (0.38, 0.12, 0.0), 0xb9c0c8, rot=(0.6, 0, 0.3), seg=4)
-    n.cyl(0.006, 0.35, (0.38, 0.12, 0.0), 0xb9c0c8, rot=(-0.6, 0, -0.3), seg=4)
-    # a spinning wheel made of a button and a spool
-    n.torus(0.14, 0.012, (-0.35, 0.22, 0), WOOD_M, rot=(0, 0, R90), seg=14, tseg=4)
-    for k in range(6):
-        n.box((0.008, 0.26, 0.008), (-0.35, 0.22, 0), WOOD_L, rot=(k * 0.52, 0, 0))
-    n.cylb(0.015, 0.22, (-0.35, 0, 0.1), WOOD_D, seg=5)
-    n.cylb(0.015, 0.22, (-0.35, 0, -0.1), WOOD_D, seg=5)
-    n.boxb((0.3, 0.02, 0.26), (-0.35, 0, 0), WOOD_D)
+    for i, (x, z) in enumerate(((0.35, 0.1), (0.46, -0.12), (0.28, -0.2))):
+        yarn_ball(n, x, 0.07, z, 0.07, YARN_COLS[i + 2], rng)
+    for rx, rz in ((0.6, 0.3), (-0.6, -0.3)):
+        n.sweep([(0.38 - 0.17 * math.sin(rz), 0.12 - 0.17 * math.cos(rx), -0.17 * math.sin(rx)),
+                 (0.38 + 0.17 * math.sin(rz), 0.12 + 0.17 * math.cos(rx), 0.17 * math.sin(rx))], [0.006, 0.006], 0xb9c0c8,
+                kind=MAT_METAL, seg=6, steps=1, start='dome', end='flat')
+    # a little spinning wheel
+    n.torus(0.14, 0.013, (-0.35, 0.24, 0), WOOD_M, rot=(0, 0, R90), seg=28, tseg=6)
+    for k in range(8):
+        a = k / 8 * math.pi
+        n.sweep([(-0.35, 0.24 - math.cos(a) * 0.14, -math.sin(a) * 0.14), (-0.35, 0.24 + math.cos(a) * 0.14, math.sin(a) * 0.14)],
+                [0.005, 0.005], WOOD_L, seg=5, steps=1, start='flat', end='flat')
+    n.cyl(0.025, 0.05, (-0.35, 0.24, 0), WOOD_D, rot=(0, 0, R90), seg=12)
+    for zz in (0.1, -0.1):
+        n.sweep([(-0.35, 0.0, zz), (-0.35, 0.26, zz * 0.2)], [0.014, 0.012], WOOD_D, seg=8, steps=1, start='flat', end='dome')
+    n.boxb((0.3, 0.02, 0.26), (-0.35, 0, 0), WOOD_D, bevel=0.005)
     # sign
-    n.cylb(0.012, 0.4, (0.1, 0, 0.3), WOOD_D, seg=4)
-    n.box((0.28, 0.1, 0.015), (0.1, 0.38, 0.3), WOOD_L, rot=(0, 0.2, 0))
+    n.sweep([(0.1, 0.0, 0.3), (0.1, 0.44, 0.3)], [0.012, 0.011], WOOD_D, seg=8, steps=1, start='flat', end='dome')
+    n.box((0.28, 0.1, 0.015), (0.1, 0.38, 0.31), WOOD_L, rot=(0, 0.2, 0), bevel=0.004)
     n.marker('ANCHOR', 'use', (0, 0, 0.55), size=(1, 1, 1), scale_size=False)
     return n
 
@@ -270,16 +345,24 @@ def knitting_corner():
 def sock_tunnel():
     """A giant sock lying on its side: crawl in to set off for the night."""
     n = mk('sockTunnel')
+    n.detail = 2.2
     L, R = 1.2, 0.3
-    cols = [0x2f6fd6, 0xf3ead6, 0x3aa845, 0xf3ead6]
-    for i in range(6):
-        z = -L / 2 + (i + 0.5) * L / 6
-        n.cyl(R, L / 6 + 0.005, (0, R, z), cols[i % 4], rot=(R90, 0, 0), seg=14, wonk=0.006)
-    for k in range(3):
-        n.torus(R + 0.005, 0.02, (0, R, L / 2 + 0.02 + k * 0.03), 0xf6f0e2, rot=(R90, 0, 0), seg=14, tseg=4)
-    n.sphere(R, (0, R, -L / 2), 0x2f6fd6, scale=(1, 1, 0.8), seg=14, rings=7)  # toe end
-    n.cyl(R * 0.8, 0.01, (0, R, -L / 2 + 0.02), 0x9a6ae0, rot=(R90, 0, 0), seg=14, kind=MAT_EMIT)  # the glow deep inside
-    n.cyl(R * 0.45, 0.012, (0, R, -L / 2 + 0.03), 0xe0c8ff, rot=(R90, 0, 0), seg=12, kind=MAT_EMIT)
+    stripes = [0x2f6fd6, 0xf3ead6, 0x3aa845, 0xf3ead6]
+
+    def paint(t, a):
+        if t < 0.14:
+            return 0xf6f0e2  # ribbed cuff at the entrance
+        if t > 0.82:
+            return 0x2f6fd6  # toe
+        return stripes[int((t - 0.14) / 0.085) % len(stripes)]
+
+    n.sweep([(0, R, L / 2 + 0.06), (0, R, 0.0), (0, R * 0.98, -L / 2 + 0.1), (0, R * 0.95, -L / 2 - 0.05)],
+            [R * 1.02, R, R * 0.98, R * 0.9], 0xf3ead6, kind=MAT_KNIT, seg=30, steps=6, start='open', end='dome',
+            paint=paint, ribs=lambda t: 0.035 if t < 0.14 else 0.0, rim=(0.04, L * 0.95, 0x3a2a4a),
+            squash=lambda t: (1.0, 0.92))
+    # the glow deep inside
+    n.cyl(R * 0.7, 0.01, (0, R, -L / 2 + 0.2), 0x9a6ae0, rot=(R90, 0, 0), seg=20, kind=MAT_EMIT)
+    n.cyl(R * 0.4, 0.012, (0, R, -L / 2 + 0.21), 0xe0c8ff, rot=(R90, 0, 0), seg=16, kind=MAT_EMIT)
     n.col_boxb((R * 1.7, 0.03, L), (0, -0.02, 0))
     n.marker('ZONE', 'portal', (0, R, -0.1), size=(R * 1.6, R * 2, L * 0.9))
     marker_light(n, 'glow', (0, R, 0), 0xa080ff, 3, 1.5)
@@ -321,23 +404,48 @@ def parrot_cage():
     n.col_boxb((0.3, 0.03, 0.3))
     top = 1.23
     n.cylb(0.2, 0.03, (0, top, 0), BRASS, seg=14)  # tray
-    for k in range(16):
-        a = k / 16 * 6.28
-        n.cylb(0.004, 0.34, (math.cos(a) * 0.19, top + 0.03, math.sin(a) * 0.19), BRASS, seg=4)
-    n.lathe([(0.19, 0.0), (0.17, 0.08), (0.1, 0.14), (0.0, 0.16)], (0, top + 0.37, 0), BRASS, seg=14)
-    n.torus(0.04, 0.008, (0, top + 0.56, 0), BRASS, rot=(R90, 0, 0), seg=8, tseg=3)
+    for k in range(18):
+        a = k / 18 * 6.28
+        c, sn = math.cos(a), math.sin(a)
+        n.sweep([(c * 0.19, top + 0.03, sn * 0.19), (c * 0.19, top + 0.38, sn * 0.19), (c * 0.16, top + 0.46, sn * 0.16),
+                 (c * 0.06, top + 0.52, sn * 0.06), (0, top + 0.535, 0)], [0.0045] * 5, BRASS, kind=MAT_METAL, seg=5,
+                steps=3, start='flat', end='flat')
+    for yy in (top + 0.2, top + 0.38):
+        n.torus(0.19, 0.006, (0, yy, 0), BRASS, seg=24, tseg=4)
+    n.torus(0.04, 0.008, (0, top + 0.58, 0), BRASS, rot=(R90, 0, 0), seg=12, tseg=4)
+    n.cyl(0.012, 0.05, (0, top + 0.545, 0), BRASS, seg=8)
     n.col_boxb((0.42, 0.55, 0.42), (0, top, 0))
     n.cyl(0.006, 0.36, (0, top + 0.16, 0), WOOD_M, rot=(0, 0, R90), seg=4)  # perch
-    bird = Node('parrot', n, (0, top + 0.17, 0))
-    bird.sphere(0.06, (0, 0.05, 0), 0x3aa845, scale=(0.9, 1.2, 0.9), seg=8, rings=6)
-    bird.sphere(0.045, (0, 0.14, 0.02), 0xd8342c, seg=8, rings=6)
-    bird.cone(0.022, 0.05, (0, 0.13, 0.07), 0xf2cf3c, rot=(R90 + 0.4, 0, 0), seg=5)
-    for x in (-0.028, 0.028):
-        bird.sphere(0.012, (x, 0.16, 0.05), 0xffffff, seg=5, rings=3)
-        bird.sphere(0.006, (x, 0.16, 0.06), BLACK, seg=4, rings=3)
-    bird.box((0.04, 0.12, 0.012), (0, -0.05, -0.05), 0x2f6fd6, rot=(0.5, 0, 0))  # tail
-    bird.box((0.012, 0.07, 0.05), (-0.055, 0.05, 0), 0x2b8a3a, rot=(0, 0, 0.2))
-    bird.box((0.012, 0.07, 0.05), (0.055, 0.05, 0), 0x2b8a3a, rot=(0, 0, -0.2))
+    bird = Node('parrot', n, (0, top + 0.17, 0), surface=MAT_FUR)
+    bird.detail = 0.4  # fine feathers
+
+    def plumage(p, nrm, mat):
+        if p[1] > 0.105:
+            return MAT_FUR, 0xd8342c  # red head
+        if p[1] < 0.03 and p[2] > 0.0:
+            return MAT_FUR, 0xf2cf3c  # yellow chest
+        return MAT_FUR, 0x3aa845
+
+    with bird.fuse(voxel=0.006, smooth=0.6, iterations=4, decimate=0.3, paint=plumage):
+        bird.blob(0.058, (0, 0.045, 0), 0x3aa845, scale=(0.9, 1.25, 0.95))
+        bird.blob(0.048, (0, 0.135, 0.02), 0xd8342c)
+    # big hooked beak
+    bird.sweep([(0, 0.145, 0.06), (0, 0.14, 0.09), (0, 0.115, 0.105), (0, 0.095, 0.095)], [0.024, 0.02, 0.012, 0.004],
+               0xf2cf3c, kind=MAT_GLOSSY, seg=10, steps=3, start='flat', end='dome')
+    bird.blob(0.015, (0, 0.115, 0.075), 0x3a3a3a, kind=MAT_GLOSSY, detail=1, scale=(1.2, 0.8, 1))  # lower beak
+    for x in (-0.03, 0.03):
+        bird.blob(0.015, (x, 0.155, 0.045), 0xffffff, kind=MAT_GLOSSY, detail=2)
+        bird.blob(0.0075, (x * 1.1, 0.156, 0.058), BLACK, kind=MAT_GLOSSY, detail=1)
+    # folded wings and a long blue tail
+    for sgn in (-1, 1):
+        bird.sweep([(sgn * 0.05, 0.09, 0.01), (sgn * 0.058, 0.03, -0.03), (sgn * 0.045, -0.04, -0.07)],
+                   [0.03, 0.028, 0.008], 0x2b8a3a, seg=10, steps=3, squash=lambda t: (0.35, 1.0))
+    for k, (x, c) in enumerate(((-0.012, 0x2f6fd6), (0.012, 0x2f6fd6), (0.0, 0xd8342c))):
+        bird.sweep([(x, -0.01, -0.05), (x * 1.5, -0.08, -0.08), (x * 2.5, -0.16, -0.09 - k * 0.005)], [0.016, 0.013, 0.004],
+                   c, seg=8, steps=3, squash=lambda t: (1.0, 0.35))
+    for x in (-0.018, 0.018):
+        bird.sweep([(x, -0.03, 0.01), (x, -0.012, 0.018), (x, -0.012, -0.012)], [0.006] * 3, 0x7a7a7a, kind=MAT_SKIN,
+                   seg=5, steps=2)  # feet on the perch
     n.marker('ZONE', 'cage', (0, top + 0.18, 0), size=(0.36, 0.3, 0.36))
     n.marker('ZONE', 'cageTop', (0, top + 0.5, 0), size=(0.6, 0.35, 0.6))
     n.marker('ANCHOR', 'eye', (0, top + 0.33, 0.06), size=(1, 1, 1), scale_size=False)
@@ -481,15 +589,15 @@ def teacup():
 
 
 def gnome_hat():
-    """A fallen gnome's hat (tinted with the owner's colour at runtime)."""
+    """A fallen gnome's hat (tinted with the owner's colour at runtime): the same knitted hat, flopped over."""
     n = Node('gnomeHat', k=1.0)
     n.props['kind'] = 'gnomeHat'
-    n.cyl(0.185, 0.07, (0, -0.1, 0), 0xd8342c, seg=10, r2=0.178, kind=MAT_TINT)
-    n.cyl(0.178, 0.26, (0, 0.065, 0), 0xd8342c, seg=10, r2=0.115, kind=MAT_TINT)
-    n.cyl(0.115, 0.2, (0, 0.2, -0.1), 0xd8342c, seg=9, r2=0.065, rot=(-0.6, 0, 0), kind=MAT_TINT)
-    n.cone(0.065, 0.2, (0, 0.25, -0.26), 0xd8342c, rot=(-1.3, 0, 0), seg=8, kind=MAT_TINT)
-    n.sphere(0.04, (0, 0.24, -0.36), 0xfff4d8, seg=7, rings=5)
-    n.sphere(0.03, (0, 0.0, 0), 0xfff4a0, seg=5, rings=3, kind=MAT_EMIT)  # a faint glow so friends find it
+    n.detail = 0.8
+    n.sweep([(0, -0.12, 0), (0, -0.03, 0), (0, 0.1, -0.02), (0, 0.2, -0.1), (0, 0.24, -0.24), (0, 0.22, -0.36)],
+            [0.19, 0.182, 0.15, 0.1, 0.06, 0.016], 0xd8342c, kind=MAT_TINT, seg=22, steps=5, start='open', end='dome',
+            ribs=lambda t: 0.03 if t < 0.13 else 0.0, rim=(0.02, 0.12, 0x3a2a22))
+    n.blob(0.045, (0, 0.235, -0.38), 0xfff4d8, kind=MAT_KNIT, detail=2, wonk=0.004)
+    n.blob(0.03, (0, -0.04, 0), 0xfff4a0, kind=MAT_EMIT, detail=1)  # a faint glow so friends find it
     return n
 
 

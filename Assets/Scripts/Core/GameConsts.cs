@@ -42,7 +42,8 @@ namespace Gnomes.Core
         public const float YarnPullStrength = 70f; // pulling things on the yarn
         public const float ThrowSpeed = 10f;
         public const float PunchImpulse = 4f;
-        public const float GripTime = 10f; // seconds of hanging on the yarn before the gnome gets tired
+        public const float GripTime = 14f; // seconds of hanging on the yarn before the gnome gets tired
+        public const float ClimbSpeed = 2.6f; // climbing up/down the yarn (W/S), units per second
         public const float YarnSnapTime = 3f; // a snapped yarn takes this long to re-spool
         public const int PocketSize = 3;
         public const float MaxHealth = 100f;

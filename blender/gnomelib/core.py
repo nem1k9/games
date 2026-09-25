@@ -144,6 +144,7 @@ class Node:
         # default surface for plain primitives of this node (inherited by children)
         self.surface = surface if surface is not None else (parent.surface if parent is not None else None)
         self.fused = []  # [(bmesh, params)] groups melted into one smooth surface at realize()
+        self._planes = {}  # plane key -> [face polygons]: used to keep decals off the faces beneath them
         # size multiplier of the surface detail texture (knit stitches, wood grain...) for this node
         self.detail = parent.detail if parent is not None else 1.0
         self._fuse_params = None
@@ -194,15 +195,98 @@ class Node:
             self._wonk(tb.verts, wonk)
         if fix_normals:
             bmesh.ops.recalc_face_normals(tb, faces=list(tb.faces))
+        if self._fuse_params is None:
+            self._lift_coplanar(tb)
         mi = self._mat_index(kind, color)
+        # wood grain runs along the longest side of the piece (1 = x, 2 = y, 3 = z in Unity axes)
+        grain = 0
+        if kind == MAT_WOOD and len(tb.verts):
+            us = [M_B2U.to_3x3() @ v.co for v in tb.verts]
+            ext = [max(u[a] for u in us) - min(u[a] for u in us) for a in range(3)]
+            grain = 1 + max(range(3), key=lambda a: ext[a])
+        layer = tb.faces.layers.int.get('grain') or tb.faces.layers.int.new('grain')
         for f in tb.faces:
             f.material_index = mi
             f.smooth = smooth
+            f[layer] = grain
         scratch = bpy.data.meshes.get('__scratch__') or bpy.data.meshes.new('__scratch__')
         tb.to_mesh(scratch)
         tb.free()
         self.bm.from_mesh(scratch)
         return self
+
+    # -- z-fighting guard --
+    LIFT = 0.006  # node units a decal face is pushed out of the face it lies on
+
+    @staticmethod
+    def _plane_key(n, d):
+        return (round(n.x * 200), round(n.y * 200), round(n.z * 200), round(d * 250))
+
+    @staticmethod
+    def _overlap(pa, pb, n):
+        """Area of the overlap of two convex coplanar polygons (lists of Vectors)."""
+        ax = max(range(3), key=lambda k: abs(n[k]))
+        i, j = [k for k in range(3) if k != ax]
+        A = [(p[i], p[j]) for p in pa]
+        B = [(p[i], p[j]) for p in pb]
+
+        def signed(P):
+            return sum(P[k][0] * P[(k + 1) % len(P)][1] - P[(k + 1) % len(P)][0] * P[k][1] for k in range(len(P))) / 2
+
+        if signed(A) < 0:
+            A = A[::-1]
+        if signed(B) < 0:
+            B = B[::-1]
+        poly = A
+        for k in range(len(B)):
+            a, b = B[k], B[(k + 1) % len(B)]
+            out = []
+            for m in range(len(poly)):
+                p, q = poly[m], poly[(m + 1) % len(poly)]
+                sp = (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0])
+                sq = (b[0] - a[0]) * (q[1] - a[1]) - (b[1] - a[1]) * (q[0] - a[0])
+                if sp >= 0:
+                    out.append(p)
+                if (sp >= 0) != (sq >= 0):
+                    t = sp / (sp - sq)
+                    out.append((p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t))
+            poly = out
+            if len(poly) < 3:
+                return 0.0
+        return abs(signed(poly))
+
+    def _lift_coplanar(self, tb):
+        """Faces of a new primitive lying flat on an existing face (same plane, same facing) would
+        z-fight in game: push them out along their normal so the newer detail sits on top."""
+        tb.normal_update()
+        tb.verts.index_update()
+        moved = set()
+        for f in tb.faces:
+            if len(f.verts) < 3 or f.calc_area() < 1e-9:
+                continue
+            n = f.normal.copy()
+            for _ in range(4):  # a decal can land on another decal: keep lifting until it is clear
+                d = n.dot(f.verts[0].co)
+                key = self._plane_key(n, d)
+                poly = [v.co.copy() for v in f.verts]
+                hit = False
+                for dk in (-1, 0, 1):
+                    for other in self._planes.get((key[0], key[1], key[2], key[3] + dk), ()):
+                        if self._overlap(poly, other, n) > 1e-7:
+                            hit = True
+                            break
+                    if hit:
+                        break
+                if not hit:
+                    break
+                for v in f.verts:
+                    v.co += n * self.LIFT
+                    moved.add(v.index)
+        tb.normal_update()
+        for f in tb.faces:
+            if len(f.verts) >= 3 and f.calc_area() > 1e-9:
+                n = f.normal
+                self._planes.setdefault(self._plane_key(n, n.dot(f.verts[0].co)), []).append([v.co.copy() for v in f.verts])
 
     # -- primitives (sizes are full extents, Unity space) --
     def box(self, size, pos=(0, 0, 0), color=0xffffff, rot=(0, 0, 0), bevel=0.0, kind=MAT_OPAQUE, wonk=0.0, taper=None):

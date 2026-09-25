@@ -120,6 +120,36 @@ namespace SockGang.Dev
             Log("shot " + path);
         }
 
+        /// <summary>The front edge of a table-height furniture top with free floor in front of it.</summary>
+        static bool FindClimbSpot(GameWorld w, out Vector3 edge, out Vector3 outward, out string what)
+        {
+            edge = outward = Vector3.Zero;
+            what = "";
+            foreach (var f in w.Furniture)
+            {
+                foreach (var s in f.Surfaces)
+                {
+                    var top = s.GlobalPosition;
+                    if (top.Y < 1.8f || top.Y > 4.5f) continue;
+                    var fwd = (-f.GlobalBasis.Z).Flat().Normalized();
+                    // walk outwards along the top until it ends
+                    var p = top;
+                    int steps = 0;
+                    while (steps++ < 40 && Phys.Raycast(p + fwd * 0.1f + Vector3.Up * 0.4f, Vector3.Down, 0.6f, Layers.Solid, out var hit) && Mathf.Abs(hit.Point.Y - top.Y) < 0.2f)
+                        p += fwd * 0.1f;
+                    if (steps >= 40) continue;
+                    var stand = new Vector3(p.X, 0.6f, p.Z) + fwd * 1.4f;
+                    if (Phys.CheckBox(stand, new Vector3(0.4f, 0.35f, 0.4f), Layers.Solid)) continue; // something in the way
+                    if (!Phys.Raycast(stand, Vector3.Down, 1.5f, Layers.Solid, out var floor) || floor.Point.Y > 0.3f) continue;
+                    edge = p;
+                    outward = fwd;
+                    what = f.Kind;
+                    return true;
+                }
+            }
+            return false;
+        }
+
         /// <summary>Point the local gnome's view at a world position.</summary>
         static void LookAt(LocalGnome g, Vector3 target)
         {
@@ -263,6 +293,31 @@ namespace SockGang.Dev
                 await Wait(0.2f);
                 await Shot("fridge_open");
             }
+
+            // --- climb the yarn onto a table / dresser: hook the edge, hold W ---
+            if (FindClimbSpot(w, out var edge, out var outward, out var what))
+            {
+                g.Teleport(new Vector3(edge.X, 0.25f, edge.Z) + outward * 1.4f, GMath.YawOf(-outward));
+                await Wait(0.5f);
+                LookAt(g, edge - outward * 0.12f + Vector3.Up * 0.04f);
+                await Wait(0.1f);
+                bool hooked = g.DebugShootYarn();
+                Check(hooked, $"the yarn hook catches the edge of the {what}");
+                if (hooked)
+                {
+                    Keys.Simulated.Add(Key.W);
+                    float y0 = g.GlobalPosition.Y;
+                    await Wait(0.55f);
+                    g.ThirdPerson = true;
+                    await Shot("climbing_yarn");
+                    bool up = await WaitFor(() => g.Grounded && g.GlobalPosition.Y > edge.Y - 0.3f, 7, "climbing the yarn");
+                    Keys.Simulated.Clear();
+                    Check(up, $"holding W climbs the yarn onto the {what} (from y {y0:0.0} to {g.GlobalPosition.Y:0.0}, top {edge.Y:0.0})");
+                    await Wait(0.3f);
+                    await Shot("climbed_up");
+                }
+            }
+            else Check(false, "found a table to climb");
 
             // --- wake grandpa and watch him get up ---
             w.OldMan.DebugWake();

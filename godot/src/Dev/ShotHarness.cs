@@ -16,6 +16,13 @@ namespace SockGang.Dev
 
         public override void _Ready()
         {
+            if (Args.TryGetValue("dump-tex", out var texNames))
+            {
+                foreach (var tn in texNames.Split(','))
+                    Rendering.Surfaces.Texture(tn).GetImage().SavePng((Args.TryGetValue("out", out var od) ? od : "/tmp") + "/tex_" + tn + ".png");
+                GetTree().Quit();
+                return;
+            }
             if (Args.TryGetValue("shot-level", out var level))
             {
                 World.WorldLoader.Parent = this;
@@ -31,7 +38,7 @@ namespace SockGang.Dev
             }
             var env = new WorldEnvironment { Environment = new Godot.Environment { BackgroundMode = Godot.Environment.BGMode.Color, BackgroundColor = new Color(0.9f, 0.86f, 0.78f), AmbientLightSource = Godot.Environment.AmbientSource.Color, AmbientLightColor = new Color(0.5f, 0.5f, 0.55f), AmbientLightEnergy = 1f } };
             AddChild(env);
-            var sun = new DirectionalLight3D { ShadowEnabled = true, LightEnergy = 1.3f };
+            var sun = new DirectionalLight3D { ShadowEnabled = !Args.ContainsKey("noshadow"), LightEnergy = 1.3f, ShadowBias = 0.05f, ShadowNormalBias = 1.5f };
             AddChild(sun);
             sun.RotationDegrees = new Vector3(-45, -35, 0);
             cam = new Camera3D { Fov = 40 };

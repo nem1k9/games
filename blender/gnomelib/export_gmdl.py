@@ -10,7 +10,8 @@ Layout (little endian):
                  'K' knit, 'F' fabric, 'U' fur, 'S' skin, 'H' hair, 'W' wood, 'M' metal,
                  'N' glossy, 'L' leather, 'R' stone)
                  int32 rgb, int32 vcount, float3[v] pos, float3[v] nrm, float2[v] uv,
-                 u8[v*4] rgba (version 2: r = baked ambient occlusion (255 = open),
+                 u8[v*4] rgba (version 2: r = baked ambient occlusion (255 = open), g = wood grain axis
+                              (0 none, 85 x, 170 y, 255 z),
                               a = detail texture scale, 128 = x1, +32 per doubling),
                  int32 icount, int32[i] indices
     int32 propCount, (str key, str value)[]
@@ -147,6 +148,7 @@ def node_submeshes(obj, ao=None):
     # detail texture scale multiplier -> alpha (128 = x1, +32 per doubling)
     detail = float(obj.get('_detail', 1.0))
     detail_a = max(0, min(255, int(round(128 + 32 * math.log2(max(detail, 1e-3))))))
+    grain_attr = me.attributes.get('grain')
     groups = {}
     for tri in me.loop_triangles:
         mat = me.materials[tri.material_index] if me.materials else None
@@ -169,7 +171,8 @@ def node_submeshes(obj, ao=None):
             if ao is not None and kind not in 'EG':
                 wn = (nmat @ bn).normalized()
                 occ = ao.at(mw @ vert.co, wn)
-            g['c'].append((int(round(occ * 255)), detail_a))
+            grain = grain_attr.data[tri.polygon_index].value if grain_attr is not None else 0
+            g['c'].append((int(round(occ * 255)), grain * 85, detail_a))
         # the basis change is a reflection -> reverse winding to keep front faces
         g['i'].extend((base, base + 2, base + 1))
     return groups
@@ -205,7 +208,7 @@ def export_gmdl(root_obj, path, extra_props=None, bake_ao=True):
                 w.f(*n)
             for uv in g['uv']:
                 w.f(*uv)
-            w.parts.append(bytes(b for (c, a) in g['c'] for b in (c, c, c, a)))
+            w.parts.append(bytes(b for (c, gr, a) in g['c'] for b in (c, gr, c, a)))
             w.i32(len(g['i']))
             w.parts.append(struct.pack('<%di' % len(g['i']), *g['i']))
         props = {k: str(o[k]) for k in o.keys() if not k.startswith('_') and isinstance(o[k], (int, float, str))}

@@ -20,6 +20,7 @@ shader_type spatial;
 render_mode blend_mix, depth_draw_opaque, cull_back, diffuse_burley, specular_schlick_ggx;
 
 uniform sampler2D palette : source_color, filter_nearest;
+// rgb: tangent-space normal of the detail relief, a: its height
 uniform sampler2D detail : filter_linear_mipmap_anisotropic, repeat_enable;
 uniform vec4 tint : source_color = vec4(1.0);
 uniform float use_tint = 0.0;
@@ -35,35 +36,40 @@ uniform float sheen = 0.0;
 varying vec3 opos;
 varying vec3 onrm;
 varying float dscale;
+varying float grain;
 
 void vertex() {
     opos = VERTEX;
     onrm = NORMAL;
     // per-model detail size: alpha 128 = x1, +32 per doubling (the stitches of a giant sock are big)
     dscale = detail_scale / exp2((COLOR.a * 255.0 - 128.0) / 32.0);
-}
-
-float height(vec3 p, vec3 n) {
-    vec3 w = pow(abs(n), vec3(6.0));
-    w /= (w.x + w.y + w.z + 1e-5);
-    vec3 q = p * dscale;
-    return texture(detail, q.zy).r * w.x + texture(detail, q.xz).r * w.y + texture(detail, q.xy).r * w.z;
+    grain = round(COLOR.g * 3.0); // the axis wood grain runs along: 1 x, 2 y, 3 z (0: any)
 }
 
 void fragment() {
     vec3 base = mix(texture(palette, UV).rgb, tint.rgb, use_tint);
-    float h = height(opos, normalize(onrm));
+    vec3 n = normalize(onrm);
+    vec3 w = pow(abs(n), vec3(6.0));
+    w /= (w.x + w.y + w.z + 1e-5);
+    vec3 q = opos * dscale;
+    // tri-planar: the detail's features run along texture u, so point u along the grain axis when it lies in the plane
+    bool sx = grain == 2.0, sy = grain == 3.0, sz = grain == 2.0;
+    vec4 tx = texture(detail, sx ? q.yz : q.zy);
+    vec4 ty = texture(detail, sy ? q.zx : q.xz);
+    vec4 tz = texture(detail, sz ? q.yx : q.xy);
+    vec2 gx = tx.rg * 2.0 - 1.0, gy = ty.rg * 2.0 - 1.0, gz = tz.rg * 2.0 - 1.0;
+    // tangent-space tilt -> object-space vector along the plane's u/v axes (sign-agnostic, UDN blend)
+    vec3 px = sx ? vec3(0.0, gx.x, gx.y) : vec3(0.0, gx.y, gx.x);
+    vec3 py = sy ? vec3(gy.y, 0.0, gy.x) : vec3(gy.x, 0.0, gy.y);
+    vec3 pz = sz ? vec3(gz.y, gz.x, 0.0) : vec3(gz.x, gz.y, 0.0);
+    vec3 pert = px * w.x + py * w.y + pz * w.z;
+    float h = tx.a * w.x + ty.a * w.y + tz.a * w.z;
+    // far away the relief is below a pixel anyway: fade it so nothing shimmers
+    float tiles_per_px = length(fwidth(opos)) * dscale;
+    float fade = clamp((0.09 - tiles_per_px) / 0.06, 0.0, 1.0);
     float ao = mix(1.0, COLOR.r, ao_strength);
-    ALBEDO = base * clamp(1.0 + (h - 0.5) * 2.0 * detail_albedo, 0.0, 2.0) * mix(1.0, ao, 0.65);
-    // bump mapping on an unparametrised surface (Mikkelsen 2010): height gradient from screen derivatives
-    float amp = detail_bump / dscale;
-    vec3 dpdx = dFdx(VERTEX);
-    vec3 dpdy = dFdy(VERTEX);
-    vec3 r1 = cross(dpdy, NORMAL);
-    vec3 r2 = cross(NORMAL, dpdx);
-    float det = dot(dpdx, r1);
-    vec3 grad = sign(det) * (dFdx(h) * amp * r1 + dFdy(h) * amp * r2);
-    NORMAL = normalize(abs(det) * NORMAL - grad);
+    ALBEDO = base * clamp(1.0 + (h - 0.5) * 2.0 * detail_albedo * mix(0.5, 1.0, fade), 0.0, 2.0) * mix(1.0, ao, 0.65);
+    NORMAL = normalize(NORMAL + (mat3(VIEW_MATRIX * MODEL_MATRIX) * pert) * detail_bump * fade);
     ROUGHNESS = rough;
     METALLIC = metal;
     SPECULAR = spec;
@@ -85,14 +91,14 @@ void fragment() {
             [MeshKind.Lit] = new Look { Tex = "paint", Scale = 1.2f, Albedo = 0.07f, Bump = 0.15f, Rough = 0.78f, Spec = 0.3f },
             [MeshKind.Tint] = new Look { Tex = "knit", Scale = 3.6f, Albedo = 0.22f, Bump = 0.9f, Rough = 0.95f, Spec = 0.2f, Sheen = 0.25f },
             [MeshKind.Knit] = new Look { Tex = "knit", Scale = 3.6f, Albedo = 0.22f, Bump = 0.9f, Rough = 0.95f, Spec = 0.2f, Sheen = 0.25f },
-            [MeshKind.Fabric] = new Look { Tex = "fabric", Scale = 7f, Albedo = 0.12f, Bump = 0.5f, Rough = 0.92f, Spec = 0.25f, Sheen = 0.2f },
-            [MeshKind.Fur] = new Look { Tex = "fur", Scale = 3.2f, Albedo = 0.28f, Bump = 0.8f, Rough = 1f, Spec = 0.15f, Sheen = 0.35f },
+            [MeshKind.Fabric] = new Look { Tex = "fabric", Scale = 4.5f, Albedo = 0.07f, Bump = 0.2f, Rough = 0.92f, Spec = 0.25f, Sheen = 0.2f },
+            [MeshKind.Fur] = new Look { Tex = "fur", Scale = 2.4f, Albedo = 0.16f, Bump = 0.35f, Rough = 1f, Spec = 0.15f, Sheen = 0.35f },
             [MeshKind.Skin] = new Look { Tex = "skin", Scale = 3f, Albedo = 0.06f, Bump = 0.12f, Rough = 0.6f, Spec = 0.35f, Sheen = 0.1f },
-            [MeshKind.Hair] = new Look { Tex = "hair", Scale = 4f, Albedo = 0.18f, Bump = 0.6f, Rough = 0.9f, Spec = 0.3f, Sheen = 0.2f },
-            [MeshKind.Wood] = new Look { Tex = "wood", Scale = 1.3f, Albedo = 0.2f, Bump = 0.2f, Rough = 0.62f, Spec = 0.35f },
+            [MeshKind.Hair] = new Look { Tex = "hair", Scale = 2.6f, Albedo = 0.1f, Bump = 0.25f, Rough = 0.9f, Spec = 0.3f, Sheen = 0.25f },
+            [MeshKind.Wood] = new Look { Tex = "wood", Scale = 0.8f, Albedo = 0.22f, Bump = 0.12f, Rough = 0.62f, Spec = 0.35f },
             [MeshKind.Metal] = new Look { Tex = "brushed", Scale = 1.4f, Albedo = 0.08f, Bump = 0.08f, Rough = 0.38f, Metal = 0.35f, Spec = 0.6f },
             [MeshKind.Glossy] = new Look { Tex = "paint", Scale = 1f, Albedo = 0.03f, Bump = 0.04f, Rough = 0.22f, Spec = 0.6f },
-            [MeshKind.Leather] = new Look { Tex = "leather", Scale = 5f, Albedo = 0.12f, Bump = 0.35f, Rough = 0.55f, Spec = 0.4f },
+            [MeshKind.Leather] = new Look { Tex = "leather", Scale = 3f, Albedo = 0.06f, Bump = 0.15f, Rough = 0.55f, Spec = 0.4f },
             [MeshKind.Stone] = new Look { Tex = "stone", Scale = 0.9f, Albedo = 0.3f, Bump = 0.6f, Rough = 0.95f, Spec = 0.2f },
         };
 
@@ -153,8 +159,8 @@ void fragment() {
             {
                 "knit" => Knit,
                 "fabric" => Fabric,
-                "fur" => (x, y) => Strands(x, y, 64, 6, 11, 0.55f),
-                "hair" => (x, y) => Strands(x, y, 48, 3, 12, 0.7f),
+                "fur" => (x, y) => Strands(x, y, 48, 6, 11, 0.45f),
+                "hair" => (x, y) => Strands(x, y, 32, 3, 12, 0.45f),
                 "skin" => Skin,
                 "wood" => Wood,
                 "brushed" => (x, y) => 0.5f + (NoiseXY(x / (float)N * 128, y / (float)N * 2, 128, 2, 31) - 0.5f) * 0.6f + (Fbm(x, y, 32) - 0.5f) * 0.2f,
@@ -162,11 +168,26 @@ void fragment() {
                 "stone" => Stone,
                 _ => (x, y) => 0.35f + Fbm(x, y, 40) * 0.3f,
             };
-            var data = new byte[N * N];
+            // height map, then its normal map by central differences (both tileable); rgb = normal, a = height
+            var hgt = new float[N * N];
             for (int y = 0; y < N; y++)
                 for (int x = 0; x < N; x++)
-                    data[y * N + x] = (byte)Math.Clamp(f(x, y) * 255f, 0f, 255f);
-            var img = Image.CreateFromData(N, N, false, Image.Format.L8, data);
+                    hgt[y * N + x] = Math.Clamp(f(x, y), 0f, 1f);
+            var data = new byte[N * N * 4];
+            const float strength = 6f;
+            for (int y = 0; y < N; y++)
+                for (int x = 0; x < N; x++)
+                {
+                    float dx = hgt[y * N + (x + 1) % N] - hgt[y * N + (x + N - 1) % N];
+                    float dy = hgt[((y + 1) % N) * N + x] - hgt[((y + N - 1) % N) * N + x];
+                    var nrm = new Vector3(-dx * strength, -dy * strength, 1f).Normalized();
+                    int i = (y * N + x) * 4;
+                    data[i] = (byte)Math.Clamp((nrm.X * 0.5f + 0.5f) * 255f, 0f, 255f);
+                    data[i + 1] = (byte)Math.Clamp((nrm.Y * 0.5f + 0.5f) * 255f, 0f, 255f);
+                    data[i + 2] = (byte)Math.Clamp((nrm.Z * 0.5f + 0.5f) * 255f, 0f, 255f);
+                    data[i + 3] = (byte)(hgt[y * N + x] * 255f);
+                }
+            var img = Image.CreateFromData(N, N, false, Image.Format.Rgba8, data);
             img.GenerateMipmaps();
             t = ImageTexture.CreateFromImage(img);
             textures[name] = t;
@@ -250,7 +271,7 @@ void fragment() {
                 }
             }
             float fibre = NoiseXY(x / (float)N * 96, y / (float)N * 24, 96, 24, 3);
-            return 0.12f + h * 0.78f + (fibre - 0.5f) * 0.14f;
+            return 0.3f + h * 0.6f + (fibre - 0.5f) * 0.12f;
         }
 
         /// <summary>Plain weave: warp and weft threads alternately on top.</summary>
@@ -278,25 +299,45 @@ void fragment() {
         static float Skin(int x, int y)
         {
             float pores = Worley(x, y, 48, 5);
-            return 0.5f + (Fbm(x, y, 9, 4, 3) - 0.5f) * 0.5f + (pores < 0.18f ? -0.2f : 0f);
+            return 0.5f + (Fbm(x, y, 9, 4, 3) - 0.5f) * 0.5f + (pores < 0.1f ? -0.08f : 0f);
         }
 
         /// <summary>Wood grain: wavy growth lines plus fine fibres.</summary>
         static float Wood(int x, int y)
         {
             float warp = Fbm(x, y, 17, 2, 3);
-            float lines = y / (float)N * 7f + warp * 2.5f; // integer multiples keep it tileable
+            float lines = y / (float)N * 5f + warp * 0.9f; // integer multiples keep it tileable
             float ring = (float)(0.5 + 0.5 * Math.Sin(lines * Math.PI * 2));
-            ring = (float)Math.Pow(ring, 4);
-            float fibre = NoiseXY(x / (float)N * 8, y / (float)N * 128, 8, 128, 19);
-            float fine = NoiseXY(x / (float)N * 16, y / (float)N * 256, 16, 256, 23);
-            return 0.58f - ring * 0.3f + (fibre - 0.5f) * 0.28f + (fine - 0.5f) * 0.12f;
+            ring = (float)Math.Pow(ring, 5);
+            float fibre = NoiseXY(x / (float)N * 3, y / (float)N * 36, 3, 36, 19);
+            return 0.6f - ring * 0.28f + (fibre - 0.5f) * 0.2f;
         }
 
+        /// <summary>Pebbled grain: slightly domed cells separated by fine creases.</summary>
         static float Leather(int x, int y)
         {
-            float w = Worley(x, y, 24, 23);
-            return 0.3f + Math.Min(w, 0.5f) * 1.1f + (Fbm(x, y, 29, 16, 2) - 0.5f) * 0.15f;
+            Worley2(x, y, 28, 23, out float f1, out float f2);
+            float crease = Math.Clamp((f2 - f1) / 0.14f, 0f, 1f);
+            return 0.35f + crease * 0.45f - f1 * 0.2f + (Fbm(x, y, 29, 16, 2) - 0.5f) * 0.1f;
+        }
+
+        /// <summary>Distances to the nearest and second nearest jittered cell point (tileable).</summary>
+        static void Worley2(int x, int y, int cells, int seed, out float f1, out float f2)
+        {
+            float cs = N / (float)cells;
+            float fx = x / cs, fy = y / cs;
+            int cx = (int)Math.Floor(fx), cy = (int)Math.Floor(fy);
+            f1 = f2 = 9f;
+            for (int j = -1; j <= 1; j++)
+                for (int i = -1; i <= 1; i++)
+                {
+                    int gx = cx + i, gy = cy + j;
+                    int wx = ((gx % cells) + cells) % cells, wy = ((gy % cells) + cells) % cells;
+                    float px = gx + Hash(wx, wy, seed), py = gy + Hash(wx, wy, seed + 7);
+                    float d = (float)Math.Sqrt((px - fx) * (px - fx) + (py - fy) * (py - fy));
+                    if (d < f1) { f2 = f1; f1 = d; }
+                    else if (d < f2) f2 = d;
+                }
         }
 
         static float Stone(int x, int y)

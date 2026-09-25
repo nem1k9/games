@@ -89,6 +89,8 @@ namespace Gnomes.Players
         public ushort CarriedProp => mode == ArmMode.HoldProp ? heldProp : (ushort)0;
         public float Grip01 => grip / GameConsts.GripTime;
         public bool OnYarn => mode == ArmMode.Climb || mode == ArmMode.YarnProp;
+        /// <summary>+1 climbing up the yarn, -1 sliding down, 0 hanging still.</summary>
+        public int Climbing { get; private set; }
         public float YarnLength => yarnLen;
         public float YarnRange => gear.YarnRange;
         public bool Stunned => Time.time < stunnedUntil;
@@ -229,6 +231,8 @@ namespace Gnomes.Players
             }
             // reel in fast with R held
             if (OnYarn && Input.GetKey(KeyCode.R)) yarnLen = Mathf.Max(GameConsts.YarnMin, yarnLen - 3f * Time.deltaTime);
+            Climbing = 0;
+            if (mode == ArmMode.Climb) ClimbYarn(Time.deltaTime);
 
             // --- hands: LMB picks up / drops ---
             if (Input.GetMouseButtonDown(0))
@@ -399,7 +403,7 @@ namespace Gnomes.Players
             var h = v.Flat();
             if (mode == ArmMode.Climb && !Grounded)
             {
-                Rb.AddForce(wish * 16f, ForceMode.Force); // swing
+                Rb.AddForce((Climbing != 0 ? YawRot * new Vector3(ix, 0, 0) : wish) * 16f, ForceMode.Force); // swing (W/S climb instead)
             }
             else if (Grounded)
             {
@@ -713,16 +717,46 @@ namespace Gnomes.Players
             hookLocal = Vector3.zero;
         }
 
+        /// <summary>
+        /// Rope climbing: W climbs up the yarn (also from the ground when it hangs from above), S slides down,
+        /// A/D swing. At the top the gnome pulls himself over the edge onto whatever the hook caught.
+        /// </summary>
+        void ClimbYarn(float dt)
+        {
+            var toAnchor = HookWorld - HandPos;
+            float dist = toAnchor.magnitude;
+            bool above = toAnchor.y > 0.4f && toAnchor.y > dist * 0.5f;
+            if (Input.GetKey(KeyCode.W) && (!Grounded || above)) Climbing = 1;
+            else if (Input.GetKey(KeyCode.S) && !Grounded) Climbing = -1;
+            if (Climbing != 0)
+            {
+                float len = Climbing > 0 ? Mathf.Min(yarnLen, dist + 0.05f) : yarnLen;
+                yarnLen = Mathf.Clamp(len - Climbing * GameConsts.ClimbSpeed * gear.StrengthMul * dt, GameConsts.YarnMin, gear.YarnRange + 1f);
+            }
+            if (Climbing > 0 && dist < 0.85f && FindLedge(out _)) YarnJump();
+        }
+
+        /// <summary>A walkable top surface just past the hook (a shelf, a table top) the gnome can climb onto.</summary>
+        bool FindLedge(out RaycastHit top)
+        {
+            var anchor = HookWorld;
+            var fwd = (anchor - transform.position).Flat();
+            if (fwd.sqrMagnitude < 0.01f) fwd = YawRot * Vector3.forward;
+            fwd.Normalize();
+            var probe = anchor + fwd * 0.45f + Vector3.up * 1.8f;
+            return Physics.Raycast(probe, Vector3.down, out top, 2.6f, Layers.World | (1 << Layers.Prop), QueryTriggerInteraction.Ignore) && top.normal.y > 0.6f && top.point.y > transform.position.y + 0.2f;
+        }
+
         void YarnJump()
         {
             var anchor = HookWorld;
             var fwd = (anchor - transform.position).Flat();
             if (fwd.sqrMagnitude < 0.01f) fwd = YawRot * Vector3.forward;
             fwd.Normalize();
+            bool ledge = FindLedge(out var top);
             DetachYarn();
             var v = Rb.Vel();
-            var probe = anchor + fwd * 0.45f + Vector3.up * 1.8f;
-            if (Physics.Raycast(probe, Vector3.down, out var top, 2.6f, Layers.World | (1 << Layers.Prop), QueryTriggerInteraction.Ignore) && top.normal.y > 0.6f && top.point.y > transform.position.y + 0.2f)
+            if (ledge)
             {
                 float h = top.point.y + 0.25f - transform.position.y;
                 float vy = Mathf.Sqrt(2f * -Physics.gravity.y * Mathf.Max(0.1f, h)) + 0.4f;
@@ -777,7 +811,7 @@ namespace Gnomes.Players
                     Prompt = (p.Def.HasTag("gnomeHat") ? Loc.T("hatHere") : Loc.T("grab") + ": " + p.Def.Name(Loc.Current)) + (p.Def.Has(ItemFlags.Heavy) ? " (!)" : "");
                     return;
                 }
-                if (OnYarn) Prompt = Loc.T("tieHint");
+                if (OnYarn) Prompt = mode == ArmMode.Climb ? Loc.T("climbHint") : Loc.T("tieHint");
             }
             if (W.Kind == LevelKind.House && Vector3.Distance(transform.position, W.GoHomePoint) < 3.5f)
             {

@@ -170,9 +170,12 @@ namespace SockGang.World
                     Box(root, $"Wall_{wall.Id}_{mid:0}", c, new Vector3(slabLen, slabH, wall.Thick / 2), yaw, SideMat(cx, cz, sgn), false);
                     if (s.y0 <= 0.001f)
                     {
+                        // baseboards of crossing walls overlap in the corners: different heights keep their
+                        // top faces apart (the same height would flicker)
+                        float bh = Mathf.Abs(dx) > Mathf.Abs(dz) ? 0.44f : 0.456f;
                         float bo = sgn * (wall.Thick / 2 + 0.04f);
-                        var bc = new V3(cx + nx * bo, 0.22f, cz + nz * bo).G();
-                        Box(root, "Baseboard", bc, new Vector3(slabLen, 0.44f, 0.08f), yaw, baseMat, false, false);
+                        var bc = new V3(cx + nx * bo, bh / 2, cz + nz * bo).G();
+                        Box(root, "Baseboard", bc, new Vector3(slabLen, bh, 0.08f), yaw, baseMat, false, false);
                     }
                 }
                 var body = new StaticBody3D { Name = "WallCol", CollisionLayer = Layers.World, CollisionMask = 0 };

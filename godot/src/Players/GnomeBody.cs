@@ -93,6 +93,7 @@ namespace SockGang.Players
             Vector3 hand = fallbackLook;
             bool active = true, yarnOn = false;
             Vector3 yarnEnd = Vector3.Zero;
+            Vector3? climbL = null, climbR = null;
             var world = GameWorld.Current;
             switch (arms.Mode)
             {
@@ -103,7 +104,13 @@ namespace SockGang.Players
                 case ArmMode.Climb:
                     yarnOn = true;
                     yarnEnd = arms.Anchor.G();
-                    hand = chest + (yarnEnd - chest).Normalized() * 0.35f;
+                    var up = (yarnEnd - chest).Normalized();
+                    hand = chest + up * 0.35f;
+                    // hand over hand along the yarn: the phase follows the yarn length (replicated), so a
+                    // climbing gnome visibly pulls himself up and a hanging one holds still
+                    float ph = arms.Hand.x * 7f;
+                    climbL = chest + up * (0.34f + 0.13f * Mathf.Sin(ph)) - right * 0.04f;
+                    climbR = chest + up * (0.34f + 0.13f * Mathf.Sin(ph + Mathf.Pi)) + right * 0.04f;
                     break;
                 case ArmMode.YarnProp:
                     var yp = world?.GetProp(arms.PropId);
@@ -125,8 +132,8 @@ namespace SockGang.Players
             }
             float spread = arms.Mode == ArmMode.HoldProp ? 0.1f : 0.06f;
             Avatar.HandsActive = active;
-            Avatar.HandTargetL = hand - right * spread;
-            Avatar.HandTargetR = hand + right * spread;
+            Avatar.HandTargetL = climbL ?? hand - right * spread;
+            Avatar.HandTargetR = climbR ?? hand + right * spread;
             Avatar.SetYarn(yarnOn, hand, yarnEnd);
         }
 
