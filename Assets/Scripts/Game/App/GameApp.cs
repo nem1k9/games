@@ -120,7 +120,7 @@ namespace Gnomes.App
             }
             catch (Exception e)
             {
-                Fail("Не удалось открыть порт " + Settings.Port + ": " + e.Message);
+                Fail(Loc.T("portFailed") + " " + Settings.Port + ": " + e.Message);
             }
         }
 

@@ -334,7 +334,7 @@ namespace Gnomes.Session
                 Players.Remove(id);
                 Host?.OnPlayerLeft(slot);
                 Broadcast(new EventMsg { Type = EvType.PlayerLeft, P = id, S = slot.Name });
-                GameApp.I?.Toast(slot.Name + " ушёл");
+                GameApp.I?.Toast(slot.Name + " " + Loc.T("playerLeft"));
             }
         }
 
@@ -381,7 +381,7 @@ namespace Gnomes.Session
                 new WelcomeMsg { PlayerId = id, Version = GameConsts.GameVersion }.Write(writer);
                 Net.Send(peer, writer.Buffer, writer.Length, true);
                 Host.OnPlayerJoined(slot);
-                GameApp.I?.Toast(slot.Name + " присоединился!");
+                GameApp.I?.Toast(slot.Name + " " + Loc.T("playerJoined"));
                 return;
             }
             if (!peerToPlayer.TryGetValue(peer, out var pid) || !Players.TryGetValue(pid, out var sl)) return;
@@ -578,7 +578,7 @@ namespace Gnomes.Session
                     {
                         Players[e.P] = new PlayerSlot { Id = e.P, Name = e.S, Hat = (byte)e.I };
                         if (w != null && e.P != LocalId && !w.Gnomes.ContainsKey(e.P)) RemoteGnome.Create(w, e.P, e.S, HatColor((byte)e.I), w.SpawnPoint(e.P));
-                        GameApp.I?.Toast(e.S + " присоединился!");
+                        GameApp.I?.Toast(e.S + " " + Loc.T("playerJoined"));
                     }
                     break;
                 case EvType.PlayerLeft:

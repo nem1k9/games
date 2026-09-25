@@ -40,6 +40,9 @@ namespace Gnomes.Core
             ["players"] = new[] { "Гномы", "Gnomes" },
             ["hostInfo"] = new[] { "Друзья подключаются по вашему IP. Порт", "Friends connect to your IP. Port" },
             ["disconnected"] = new[] { "Соединение потеряно", "Disconnected" },
+            ["playerJoined"] = new[] { "присоединился!", "joined!" },
+            ["playerLeft"] = new[] { "ушёл", "left" },
+            ["portFailed"] = new[] { "Не удалось открыть порт", "Could not open port" },
             ["ok"] = new[] { "Ок", "OK" },
 
             // --- village (hub) ---
