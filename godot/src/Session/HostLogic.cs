@@ -166,6 +166,7 @@ namespace SockGang.Session
             if (w != null)
             {
                 if (!w.Gnomes.ContainsKey(slot.Id)) RemoteGnome.Create(w, slot.Id, slot.Name, slot.Color, w.SpawnPoint(slot.Id));
+                GameSession.DressGnome(w, slot.Id, slot.Hat);
                 slot.Status = PlayerStatus.Free;
             }
             S.SendLoadLevel(MakeLoad(), slot);

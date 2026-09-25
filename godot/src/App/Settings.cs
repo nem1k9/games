@@ -18,6 +18,8 @@ namespace SockGang.App
         public int Port = GameConsts.DefaultPort;
         public int Quality = 2; // 0 low, 1 medium, 2 high
         public bool Fullscreen;
+        /// <summary>The rainbow hat is found (Konami code in the menu).</summary>
+        public bool RainbowUnlocked;
 
         public static Settings Load()
         {
@@ -35,6 +37,8 @@ namespace SockGang.App
             s.Port = (int)cf.GetValue("net", "port", GameConsts.DefaultPort);
             s.Quality = (int)cf.GetValue("video", "quality", 2);
             s.Fullscreen = (bool)cf.GetValue("video", "fullscreen", false);
+            s.RainbowUnlocked = (bool)cf.GetValue("secrets", "rainbow", false);
+            if (!s.RainbowUnlocked) s.Hat &= 0x7f;
             return s;
         }
 
@@ -52,6 +56,7 @@ namespace SockGang.App
             cf.SetValue("net", "port", Port);
             cf.SetValue("video", "quality", Quality);
             cf.SetValue("video", "fullscreen", Fullscreen);
+            cf.SetValue("secrets", "rainbow", RainbowUnlocked);
             cf.Save(Path);
         }
     }

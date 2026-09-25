@@ -16,6 +16,26 @@ namespace SockGang.Dev
 
         public override void _Ready()
         {
+            if (Args.TryGetValue("font-sheet", out var fontDir))
+            {
+                var bg = new ColorRect { Color = new Color(0.16f, 0.12f, 0.18f), Size = new Vector2(1600, 1200) };
+                var layer = new CanvasLayer();
+                AddChild(layer);
+                layer.AddChild(bg);
+                var box = new VBoxContainer { Position = new Vector2(20, 10) };
+                layer.AddChild(box);
+                foreach (var f in System.IO.Directory.GetFiles(fontDir, "*.ttf"))
+                {
+                    var ff = new FontFile();
+                    ff.Data = System.IO.File.ReadAllBytes(f);
+                    var l = new Label { Text = System.IO.Path.GetFileNameWithoutExtension(f) + ":  НОСОЧНАЯ БАНДА — Играть одному! Ёжик, 123", };
+                    l.AddThemeFontOverride("font", ff);
+                    l.AddThemeFontSizeOverride("font_size", 40);
+                    l.AddThemeColorOverride("font_color", new Color(1f, 0.9f, 0.7f));
+                    box.AddChild(l);
+                }
+                return;
+            }
             if (Args.TryGetValue("dump-tex", out var texNames))
             {
                 foreach (var tn in texNames.Split(','))

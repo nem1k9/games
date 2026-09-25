@@ -164,6 +164,7 @@ namespace SockGang.Dev
             try
             {
                 if (mode == "client") await RunClient();
+                else if (mode == "ui") await RunUiTour();
                 else await RunHostOrSolo(mode == "host");
             }
             catch (Exception e)
@@ -172,6 +173,55 @@ namespace SockGang.Dev
             }
             Log(failures.Count == 0 ? "ALL PASSED" : $"{failures.Count} FAILURES: " + string.Join("; ", failures));
             GetTree().Quit(failures.Count == 0 ? 0 : 1);
+        }
+
+        /// <summary>Visits every screen and overlay and takes a picture of each (for eyeballing the interface).</summary>
+        async Task RunUiTour()
+        {
+            await Wait(1.5f);
+            await Shot("ui_menu");
+            App.Screen = AppScreen.HostSetup;
+            await Wait(0.4f);
+            await Shot("ui_host");
+            App.Screen = AppScreen.JoinSetup;
+            App.StartDiscovery();
+            await Wait(0.6f);
+            await Shot("ui_join");
+            App.StopDiscovery();
+            App.SettingsReturn = AppScreen.Menu;
+            App.Screen = AppScreen.Settings;
+            await Wait(0.4f);
+            await Shot("ui_settings");
+            App.Screen = AppScreen.Menu;
+            await Wait(0.3f);
+            App.StartSolo();
+            await WaitFor(() => App.Screen == AppScreen.Playing && LocalGnome.I != null, 10, "hub loaded");
+            await Wait(1.5f);
+            await Shot("ui_village_hud");
+            App.CraftOpen = true;
+            await Wait(0.4f);
+            await Shot("ui_craft");
+            App.CraftOpen = false;
+            App.ShowGreatSock();
+            await Wait(0.4f);
+            await Shot("ui_sock");
+            App.SockOpen = false;
+            App.Paused = true;
+            await Wait(0.4f);
+            await Shot("ui_pause");
+            App.Paused = false;
+            S.Host.StartNight();
+            await Wait(0.05f);
+            await Shot("ui_loading");
+            await WaitFor(() => W != null && W.Kind == LevelKind.House && W.Night != null && LocalGnome.I != null, 20, "house loaded");
+            await Wait(2f);
+            await Shot("ui_house_hud");
+            App.Toast("Проверка всплывающего сообщения", Colors.White);
+            S.Host.DebugEndNight();
+            await WaitFor(() => App.Screen == AppScreen.Report, 10, "report");
+            await Wait(1f);
+            await Shot("ui_report");
+            Check(true, "ui tour done");
         }
 
         async Task RunHostOrSolo(bool host)

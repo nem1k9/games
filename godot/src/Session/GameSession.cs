@@ -79,7 +79,20 @@ namespace SockGang.Session
             Conv.C8(155, 68, 201), Conv.C8(239, 122, 36), Conv.C8(231, 154, 168), Conv.C8(40, 170, 170),
         };
 
-        public static Color HatColor(byte i) => Hats[i % Hats.Length];
+        public static Color HatColor(byte i) => Hats[(i & 0x7f) % Hats.Length];
+
+        /// <summary>The secret rainbow hat (found with the Konami code in the menu) rides on the high bit.</summary>
+        public const byte RainbowFlag = 0x80;
+        public static bool IsRainbow(byte hat) => (hat & RainbowFlag) != 0;
+
+        /// <summary>Hue cycling in 36 steps (each step's material is cached and shared).</summary>
+        public static Color RainbowColor(float t) => Color.FromHsv(Mathf.Floor(Mathf.PosMod(t * 0.2f, 1f) * 36f) / 36f, 0.72f, 0.95f);
+
+        /// <summary>Hat details a gnome's avatar needs besides the colour (the rainbow animates).</summary>
+        public static void DressGnome(GameWorld w, byte id, byte hat)
+        {
+            if (w != null && w.Gnomes.TryGetValue(id, out var g) && g.Avatar != null) g.Avatar.Rainbow = IsRainbow(hat);
+        }
         public static int HatCount => Hats.Length;
 
         public PlayerSlot LocalSlot => Players.TryGetValue(LocalId, out var s) ? s : null;
@@ -360,8 +373,9 @@ namespace SockGang.Session
                 while (Players.ContainsKey(id)) id++;
                 var slot = new PlayerSlot { Id = id, Name = string.IsNullOrWhiteSpace(hello.Name) ? "Гном" + id : hello.Name.Trim(), Hat = hello.Hat, Peer = peer };
                 var used = new HashSet<byte>();
-                foreach (var p in Players.Values) used.Add((byte)(p.Hat % HatCount));
-                for (int k = 0; k < HatCount && used.Contains((byte)(slot.Hat % HatCount)); k++) slot.Hat = (byte)((slot.Hat + 1) % HatCount);
+                foreach (var p in Players.Values) used.Add((byte)((p.Hat & 0x7f) % HatCount));
+                byte rainbow = (byte)(slot.Hat & RainbowFlag);
+                for (int k = 0; k < HatCount && used.Contains((byte)((slot.Hat & 0x7f) % HatCount)); k++) slot.Hat = (byte)(((slot.Hat & 0x7f) + 1) % HatCount | rainbow);
                 Players[id] = slot;
                 peerToPlayer[peer] = id;
                 writer.Reset();
@@ -440,6 +454,7 @@ namespace SockGang.Session
                 float yaw = Conv.Yaw(Mathf.Pi); // face into the level: the house interior / the village and the Great Sock
                 if (p.Id == LocalId) LocalGnome.Create(world, p.Id, p.Name, HatColor(p.Hat), pos, yaw);
                 else RemoteGnome.Create(world, p.Id, p.Name, HatColor(p.Hat), pos);
+                DressGnome(world, p.Id, p.Hat);
                 if (world.Gnomes.TryGetValue(p.Id, out var g))
                 {
                     g.Status = p.Status;
@@ -565,6 +580,7 @@ namespace SockGang.Session
                     {
                         Players[e.P] = new PlayerSlot { Id = e.P, Name = e.S, Hat = (byte)e.I };
                         if (w != null && e.P != LocalId && !w.Gnomes.ContainsKey(e.P)) RemoteGnome.Create(w, e.P, e.S, HatColor((byte)e.I), w.SpawnPoint(e.P));
+                        DressGnome(w, e.P, (byte)e.I);
                         GameApp.I?.Toast(e.S + " " + Loc.T("playerJoined"));
                     }
                     break;

@@ -19,6 +19,8 @@ namespace SockGang.Players
         Vector3 lastPos, hatVel, hatOffset, smoothedVel;
         float squash = 1f;
         public Color HatColor;
+        /// <summary>The secret rainbow hat: the colour cycles.</summary>
+        public bool Rainbow;
 
         // inputs set by the owner every frame
         public float Yaw;
@@ -174,6 +176,8 @@ namespace SockGang.Players
             }
             Basis = GMath.YawBasis(Yaw) * Basis.FromScale(new Vector3(1f + (1f - squash) * 0.35f, squash, 1f + (1f - squash) * 0.35f));
             if (head != null) head.Quaternion = headRest * new Quaternion(Vector3.Right, Mathf.Clamp(Pitch * 0.5f, -0.44f, 0.52f));
+
+            if (Rainbow) Model.SetTint(Session.GameSession.RainbowColor(t));
 
             // --- floppy hat: a damped spring driven by acceleration ---
             if (hat != null) hat.Scale = GMath.Damp(hat.Scale, Gliding ? new Vector3(2.2f, 0.55f, 2.2f) : Vector3.One, 12f, dt);

@@ -66,7 +66,7 @@ namespace SockGang.App
         public override void _Ready()
         {
             Args = UserArgs();
-            if (Args.ContainsKey("shot-model") || Args.ContainsKey("shot-level") || Args.ContainsKey("dump-tex"))
+            if (Args.ContainsKey("shot-model") || Args.ContainsKey("shot-level") || Args.ContainsKey("dump-tex") || Args.ContainsKey("font-sheet"))
             {
                 AddChild(new Dev.ShotHarness { Args = Args });
                 return;

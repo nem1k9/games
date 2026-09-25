@@ -244,7 +244,13 @@ namespace SockGang.Players
             if (Keys.Pressed(Key.Q)) S?.SendAction(new ActionMsg { Type = ActionType.DropPockets, A = (HeadPos + LookDir * 0.6f).U(), B = (LookDir * 2f).U() });
             if (Keys.Pressed(Key.G) && S?.Save != null && S.Save.Potions > 0)
                 S.SendAction(new ActionMsg { Type = ActionType.Potion, A = (HeadPos + LookDir * 0.5f).U(), B = (LookDir * 11f + Vector3.Up * 2f + Velocity * 0.5f).U() });
-            if (Keys.Pressed(Key.H)) S?.SendAction(new ActionMsg { Type = ActionType.Honk, A = HeadPos.U() });
+            if (Keys.Pressed(Key.H))
+            {
+                S?.SendAction(new ActionMsg { Type = ActionType.Honk, A = HeadPos.U() });
+                bool nearSock = W != null && W.Kind == LevelKind.Hub && W.HighGnome != null && GlobalPosition.DistanceTo(W.HighGnome.GlobalPosition) < 7f;
+                var secret = UI.EasterEggs.Whistle(Clock.Now, nearSock);
+                if (secret != null) GameApp.I?.Toast(secret, new Color(1f, 0.85f, 0.45f));
+            }
         }
 
         void UpdateCaptured(bool input, float dt)
