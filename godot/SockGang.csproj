@@ -1,0 +1,19 @@
+<Project Sdk="Godot.NET.Sdk/4.5.1">
+  <!-- Godot version of the game. Shares the engine-free rules (Core) and networking (Net) with the Unity project. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <LangVersion>10.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>SockGang</RootNamespace>
+    <NoWarn>CS1701;CS1702;CS0649;CS0414</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../Assets/Scripts/Core/**/*.cs" Link="Shared/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../Assets/Scripts/Net/**/*.cs" Link="Shared/Net/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Reference Include="LiteNetLib">
+      <HintPath>../Assets/Plugins/LiteNetLib/LiteNetLib.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+</Project>

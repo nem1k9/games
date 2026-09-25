@@ -1,38 +1,36 @@
 using System.Collections.Generic;
-using Gnomes.Audio;
 using Gnomes.Core;
 using Gnomes.Core.Protocol;
-using Gnomes.Players;
-using Gnomes.Rendering;
-using Gnomes.Session;
-using Gnomes.World;
-using UnityEngine;
-using UnityEngine.AI;
+using Godot;
+using SockGang.Audio;
+using SockGang.Players;
+using SockGang.Rendering;
+using SockGang.Session;
+using SockGang.World;
 
-namespace Gnomes.NPC
+namespace SockGang.NPC
 {
     /// <summary>
     /// Grandpa. Sleeps, wakes up from noise, patrols with a torch, undoes pranks, chases gnomes,
     /// pickles them in jars and - when he's had enough - uses the fly swatter.
     /// </summary>
-    public class OldMan : NpcBase
+    public partial class OldMan : NpcBase
     {
         public enum St : byte { Sleep, WakeUp, Patrol, Investigate, Chase, Grab, Carry, Jarring, Swat, Doze, Fix, GoBed, Search }
 
         ModelInstance model;
-        Transform hips, spine, neck, head, upArmL, upArmR, foreArmL, foreArmR, handL, handR, thighL, thighR, shinL, shinR;
-        readonly Dictionary<Transform, Quaternion> rest = new Dictionary<Transform, Quaternion>();
+        Node3D hips, spine, neck, head, upArmL, upArmR, foreArmL, foreArmR, handL, handR, thighL, thighR, shinL, shinR;
+        readonly Dictionary<Node3D, Quaternion> rest = new Dictionary<Node3D, Quaternion>();
         Vector3 hipsRestPos;
-        NavMeshAgent agent;
-        Rigidbody rb;
-        CapsuleCollider col;
-        Light torch;
-        Transform swatter;
+        NavAgent agent;
+        CollisionShape3D col;
+        SpotLight3D torch;
+        Node3D swatter;
         Furniture bed;
         GameSession S => GameSession.I;
         HostLogic H => S?.Host;
 
-        float wake; // sleeping: reaches 1 -> wakes up
+        float wake;
         float stateTime;
         byte targetId = 255;
         Vector3 lastSeen;
@@ -45,49 +43,31 @@ namespace Gnomes.NPC
         float nextThink, nextSnore, nextGrumble;
         float patrolTime;
         Mechanism fixTarget;
-        Furniture fixLamp; // a lamp the gang switched off
+        Furniture fixLamp;
         bool naturalWakeDone;
-        Vector3 lastPosClient;
-        Vector3 velClient;
+        Vector3 lastPosClient, velClient;
         float walkPhase;
-        float blockedTime; // chasing a gnome he can't get at
+        float blockedTime;
 
         public St Mode => (St)State;
-        public Vector3 HandPos => handR ? handR.position + handR.rotation * new Vector3(0, -0.5f, 0.1f) : transform.position + Vector3.up * 4f;
-        public Vector3 Eye => head ? head.position + Vector3.up * 0.2f : transform.position + Vector3.up * GameConsts.OldManEye;
+        public Vector3 HandPos => handR != null ? handR.GlobalPosition + handR.GlobalBasis.Orthonormalized() * new Vector3(0, -0.5f, -0.1f) : GlobalPosition + Vector3.Up * 4f;
+        public Vector3 Eye => head != null ? head.GlobalPosition + Vector3.Up * 0.2f : GlobalPosition + Vector3.Up * GameConsts.OldManEye;
         public bool Asleep => Mode == St.Sleep || Mode == St.Doze;
+        Vector3 Fwd => GMath.YawForward(BodyYaw);
 
         public static OldMan Spawn(GameWorld w, bool authority)
         {
-            var inst = ModelLibrary.Instantiate("oldMan", w.NpcRoot, Layers.NPC, withColliders: false);
-            var om = inst.gameObject.AddComponent<OldMan>();
-            om.NpcId = OldManId;
-            om.Authority = authority;
-            om.model = inst;
+            var om = new OldMan { Name = "OldMan", NpcId = OldManId, Authority = authority, SyncToPhysics = false, CollisionLayer = Layers.Npc, CollisionMask = 0 };
+            w.NpcRoot.AddChild(om);
+            om.model = ModelLibrary.Instantiate("oldMan", om, ColliderMode.None);
             om.Bind();
             om.bed = w.FindFurniture("bed");
-            inst.SetLayerRecursive(Layers.NPC);
-            om.rb = inst.gameObject.AddComponent<Rigidbody>();
-            om.rb.isKinematic = true;
-            om.rb.interpolation = RigidbodyInterpolation.Interpolate;
-            om.col = inst.gameObject.AddComponent<CapsuleCollider>();
-            om.col.radius = 0.95f;
-            om.col.height = GameConsts.OldManHeight;
-            om.col.center = new Vector3(0, GameConsts.OldManHeight / 2, 0);
+            om.col = new CollisionShape3D { Shape = new CapsuleShape3D { Radius = 0.95f, Height = GameConsts.OldManHeight }, Position = new Vector3(0, GameConsts.OldManHeight / 2, 0) };
+            om.AddChild(om.col);
             om.BuildProps();
             if (authority)
             {
-                om.agent = inst.gameObject.AddComponent<NavMeshAgent>();
-                om.agent.radius = GameConsts.OldManRadius;
-                om.agent.height = GameConsts.OldManHeight;
-                om.agent.speed = GameConsts.OldManWalk;
-                om.agent.acceleration = 22f;
-                om.agent.angularSpeed = 300f;
-                om.agent.stoppingDistance = 0.6f;
-                om.agent.updatePosition = false;
-                om.agent.updateRotation = false;
-                om.agent.autoRepath = true;
-                om.agent.enabled = false;
+                om.agent = new NavAgent(w.GetWorld3D().NavigationMap) { Speed = GameConsts.OldManWalk, Acceleration = 22f, StoppingDistance = 0.6f, Enabled = false };
             }
             om.EnterSleep(true);
             w.OldMan = om;
@@ -111,84 +91,66 @@ namespace Gnomes.NPC
             shinL = model.Node("shinL");
             shinR = model.Node("shinR");
             foreach (var t in new[] { hips, spine, neck, head, upArmL, upArmR, foreArmL, foreArmR, thighL, thighR, shinL, shinR })
-                if (t) rest[t] = t.localRotation;
-            if (hips) hipsRestPos = hips.localPosition;
+                if (t != null) rest[t] = t.Quaternion;
+            if (hips != null) hipsRestPos = hips.Position;
         }
 
         void BuildProps()
         {
             // torch in the left hand
-            var tgo = new GameObject("Torch");
-            tgo.transform.SetParent(handL ? handL : transform, false);
-            tgo.transform.localPosition = new Vector3(0, -0.45f, 0.1f);
-            tgo.transform.localRotation = Quaternion.Euler(80, 0, 0);
-            torch = tgo.AddComponent<Light>();
-            torch.type = LightType.Spot;
-            torch.spotAngle = 48f;
-            torch.range = 34f;
-            torch.intensity = 2.2f;
-            torch.color = new Color(1f, 0.93f, 0.75f);
-            torch.shadows = LightShadows.None;
-            var body = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            Destroy(body.GetComponent<Collider>());
-            body.transform.SetParent(tgo.transform, false);
-            body.transform.localScale = new Vector3(0.18f, 0.25f, 0.18f);
-            body.transform.localRotation = Quaternion.Euler(90, 0, 0);
-            body.GetComponent<MeshRenderer>().sharedMaterial = ModelLibrary.TintMaterial(new Color32(60, 60, 70, 255));
+            var tgo = new Node3D { Name = "Torch" };
+            (handL ?? (Node3D)this).AddChild(tgo);
+            tgo.Position = new Vector3(0, -0.45f, -0.1f);
+            tgo.Quaternion = Conv.UEuler(80, 0, 0);
+            torch = new SpotLight3D { SpotAngle = 24f, SpotRange = 34f, LightEnergy = 4f, LightColor = new Color(1f, 0.93f, 0.75f), ShadowEnabled = true, SpotAngleAttenuation = 0.6f };
+            tgo.AddChild(torch);
+            var body = new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 0.09f, BottomRadius = 0.09f, Height = 0.5f, RadialSegments = 8 }, MaterialOverride = ModelLibrary.TintMaterial(Conv.C8(60, 60, 70)), Rotation = new Vector3(Mathf.Pi / 2, 0, 0) };
+            tgo.AddChild(body);
             // fly swatter in the right hand (shown when he's angry)
-            swatter = new GameObject("Swatter").transform;
-            swatter.SetParent(handR ? handR : transform, false);
-            swatter.localPosition = new Vector3(0, -0.4f, 0.1f);
-            var stick = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            Destroy(stick.GetComponent<Collider>());
-            stick.transform.SetParent(swatter, false);
-            stick.transform.localScale = new Vector3(0.06f, 1.1f, 0.06f);
-            stick.transform.localPosition = new Vector3(0, -1.0f, 0);
-            stick.GetComponent<MeshRenderer>().sharedMaterial = ModelLibrary.TintMaterial(new Color32(230, 200, 60, 255));
-            var pad = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            Destroy(pad.GetComponent<Collider>());
-            pad.transform.SetParent(swatter, false);
-            pad.transform.localScale = new Vector3(0.9f, 1.0f, 0.06f);
-            pad.transform.localPosition = new Vector3(0, -2.5f, 0);
-            pad.GetComponent<MeshRenderer>().sharedMaterial = ModelLibrary.TintMaterial(new Color32(210, 50, 50, 255));
-            swatter.gameObject.SetActive(false);
+            swatter = new Node3D { Name = "Swatter", Position = new Vector3(0, -0.4f, -0.1f) };
+            (handR ?? (Node3D)this).AddChild(swatter);
+            swatter.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 0.03f, BottomRadius = 0.03f, Height = 2.2f, RadialSegments = 6 }, MaterialOverride = ModelLibrary.TintMaterial(Conv.C8(230, 200, 60)), Position = new Vector3(0, -1f, 0) });
+            swatter.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(0.9f, 1.0f, 0.06f) }, MaterialOverride = ModelLibrary.TintMaterial(Conv.C8(210, 50, 50)), Position = new Vector3(0, -2.5f, 0) });
+            swatter.Visible = false;
         }
 
         // ================================================================== host AI
 
-        void Update()
+        public override void _Process(double delta)
         {
-            float dt = Time.deltaTime;
+            float dt = (float)delta;
             stateTime += dt;
             if (Authority) Think(dt);
             else
             {
-                velClient = (transform.position - lastPosClient) / Mathf.Max(dt, 1e-4f);
-                lastPosClient = transform.position;
+                velClient = (GlobalPosition - lastPosClient) / Mathf.Max(dt, 1e-4f);
+                lastPosClient = GlobalPosition;
             }
             Animate(dt);
-            if (Asleep && Time.time > nextSnore)
+            if (Asleep && Clock.Now > nextSnore)
             {
-                nextSnore = Time.time + 3.6f;
+                nextSnore = Clock.Now + 3.6f;
                 Sfx.I?.Play(SoundId.Snore, Eye, 0.7f);
-                Fx.Sparkles(W, Eye + Vector3.up * 0.5f, new Color32(200, 220, 255, 255), 2, 0.6f);
+                Fx.Sparkles(W, Eye + Vector3.Up * 0.5f, new Color(0.78f, 0.86f, 1f), 2, 0.6f);
             }
-            if (torch) torch.enabled = !Asleep && Mode != St.WakeUp;
-            if (swatter) swatter.gameObject.SetActive(Mode == St.Swat || (Alert > 0.8f && !Asleep && Mode != St.Carry));
+            if (torch != null) torch.Visible = !Asleep && Mode != St.WakeUp;
+            if (swatter != null) swatter.Visible = Mode == St.Swat || (Alert > 0.8f && !Asleep && Mode != St.Carry);
         }
 
-        void FixedUpdate()
+        public override void _PhysicsProcess(double delta)
         {
-            if (!Authority || agent == null || !agent.enabled) return;
-            var next = agent.nextPosition;
-            rb.MovePosition(next);
-            var v = agent.velocity.Flat();
-            if (v.sqrMagnitude > 0.05f) rb.MoveRotation(Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(v), 0.2f));
-            else if (Look != Vector3.zero && (Mode == St.Chase || Mode == St.Grab || Mode == St.Swat || Mode == St.Search))
+            if (!Authority || agent == null || !agent.Enabled) return;
+            float dt = (float)delta;
+            var next = agent.Step(dt);
+            var v = agent.Velocity.Flat();
+            float yaw = BodyYaw;
+            if (v.LengthSquared() > 0.05f) yaw = Mathf.LerpAngle(yaw, GMath.YawOf(v), 0.2f);
+            else if (Look != Vector3.Zero && (Mode == St.Chase || Mode == St.Grab || Mode == St.Swat || Mode == St.Search))
             {
-                var to = (Look - transform.position).Flat();
-                if (to.sqrMagnitude > 0.01f) rb.MoveRotation(Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(to), 0.15f));
+                var to = (Look - GlobalPosition).Flat();
+                if (to.LengthSquared() > 0.01f) yaw = Mathf.LerpAngle(yaw, GMath.YawOf(to), 0.15f);
             }
+            MoveBody(next, yaw);
         }
 
         void SetState(St s)
@@ -198,48 +160,54 @@ namespace Gnomes.NPC
         }
 
         float SpeedMul => 1f + Mathf.Min(0.35f, (Mathf.Max(1, S != null ? S.Night : 1) - 1) * 0.06f);
-        float HearMul => (W != null && W.Night != null && W.Night.BankedByKind.ContainsKey("hearingAid")) ? 0.5f : 1f;
-        float ViewMul => (W != null && W.Night != null && W.Night.BankedByKind.ContainsKey("glasses")) ? 0.45f : 1f;
+        float HearMul => W?.Night != null && W.Night.BankedByKind.ContainsKey("hearingAid") ? 0.5f : 1f;
+        float ViewMul => W?.Night != null && W.Night.BankedByKind.ContainsKey("glasses") ? 0.45f : 1f;
+
+        Transform3D SleepTransform()
+        {
+            // lying on his back on the bed: face up, head towards the headboard
+            var fwd = -bed.GlobalBasis.Z.Normalized();
+            var anchor = bed.AnchorPos("sleep", bed.GlobalPosition + Vector3.Up * 2.4f);
+            var y = -fwd;
+            var z = -Vector3.Up; // model front (-Z) faces the ceiling
+            var x = y.Cross(z).Normalized();
+            return new Transform3D(new Basis(x, y, z), anchor + fwd * 3.3f + Vector3.Up * 0.35f);
+        }
 
         void EnterSleep(bool instant)
         {
             SetState(St.Sleep);
             wake = 0;
-            if (agent) agent.enabled = false;
-            col.enabled = false;
+            if (agent != null) agent.Enabled = false;
+            col.Disabled = true;
             if (bed == null) return;
-            var anchor = bed.AnchorPos("sleep", bed.transform.position + Vector3.up * 2.4f);
-            var fwd = bed.transform.forward;
-            transform.SetPositionAndRotation(anchor + fwd * 3.3f + Vector3.up * 0.35f, Quaternion.LookRotation(Vector3.up, -fwd));
-            rb.position = transform.position;
-            rb.rotation = transform.rotation;
+            GlobalTransform = SleepTransform();
         }
 
         void StandUp(Vector3 near)
         {
-            if (NavMesh.SamplePosition(near, out var hit, 6f, NavMesh.AllAreas))
+            if (agent != null && agent.Sample(near, 6f, out var hit))
             {
-                transform.SetPositionAndRotation(hit.position, Quaternion.LookRotation((bed != null ? bed.transform.forward : Vector3.forward).Flat().normalized + Vector3.forward * 0.001f));
-                rb.position = transform.position;
-                rb.rotation = transform.rotation;
-                agent.enabled = true;
-                agent.Warp(hit.position);
+                var bf = bed != null ? (-bed.GlobalBasis.Z).Flat() : Vector3.Forward;
+                MoveBody(hit, GMath.YawOf(bf.LengthSquared() > 0.001f ? bf : Vector3.Forward));
+                agent.Enabled = true;
+                agent.Warp(hit);
             }
-            col.enabled = true;
+            col.Disabled = false;
         }
 
         void Go(Vector3 dest, float speed)
         {
-            if (agent == null || !agent.enabled) return;
-            agent.speed = speed * SpeedMul;
-            if (NavMesh.SamplePosition(dest, out var hit, 5f, NavMesh.AllAreas)) agent.SetDestination(hit.position);
+            if (agent == null || !agent.Enabled) return;
+            agent.Speed = speed * SpeedMul;
+            if (agent.Sample(dest, 5f, out var hit)) agent.SetDestination(hit);
         }
 
-        bool Arrived(float slack = 1.2f) => agent != null && agent.enabled && !agent.pathPending && agent.remainingDistance <= agent.stoppingDistance + slack;
+        bool Arrived(float slack = 1.2f) => agent != null && agent.Enabled && !agent.PathPending && agent.RemainingDistance <= agent.StoppingDistance + slack;
 
         void Stop()
         {
-            if (agent != null && agent.enabled) agent.ResetPath();
+            if (agent != null && agent.Enabled) agent.ResetPath();
         }
 
         void Think(float dt)
@@ -247,7 +215,6 @@ namespace Gnomes.NPC
             var w = W;
             if (w == null || H == null || w.Night == null) return;
             Alert = Mathf.Max(0, Alert - dt * 0.02f);
-            // decay detection
             var keys = new List<byte>(detect.Keys);
             foreach (var k in keys) detect[k] = Mathf.Max(0, detect[k] - dt * 0.35f);
 
@@ -255,7 +222,7 @@ namespace Gnomes.NPC
             {
                 case St.Sleep:
                     wake = Mathf.Max(0, wake - dt * 0.03f);
-                    if (!naturalWakeDone && w.Night.Progress01 > 0.3f && Random.value < dt * 0.01f)
+                    if (!naturalWakeDone && w.Night.Progress01 > 0.3f && GMath.Rand01 < dt * 0.01f)
                     {
                         naturalWakeDone = true;
                         wake = 1f; // needs the toilet
@@ -263,38 +230,36 @@ namespace Gnomes.NPC
                     if (wake >= 1f)
                     {
                         SetState(St.WakeUp);
-                        Sfx.I?.Play(SoundId.Grumble, Eye, 1f);
                         w.EmitSound(SoundId.Grumble, Eye, 1f);
                     }
                     return;
                 case St.WakeUp:
                     if (stateTime > 1.6f)
                     {
-                        StandUp(w.Layout.Spots["bed"].U());
+                        StandUp(w.Layout.Spots["bed"].G());
                         Alert = Mathf.Max(Alert, 0.4f);
-                        if (investigateScore > 0) SetState(St.Investigate);
-                        else SetState(St.Patrol);
+                        SetState(investigateScore > 0 ? St.Investigate : St.Patrol);
                     }
                     return;
                 case St.Doze:
                     if (stateTime > 25f)
                     {
-                        col.enabled = true;
+                        col.Disabled = false;
                         if (agent != null)
                         {
-                            agent.enabled = true; // was switched off when he nodded off
-                            if (NavMesh.SamplePosition(transform.position, out var hit, 4f, NavMesh.AllAreas)) agent.Warp(hit.position);
+                            agent.Enabled = true; // was switched off when he nodded off
+                            if (agent.Sample(GlobalPosition, 4f, out var hit)) agent.Warp(hit);
                         }
                         SetState(St.Search);
-                        Look = transform.position + transform.forward * 5f;
+                        Look = GlobalPosition + Fwd * 5f;
                     }
                     return;
             }
 
             // --- awake: look for gnomes ---
-            if (Time.time > nextThink)
+            if (Clock.Now > nextThink)
             {
-                nextThink = Time.time + 0.15f;
+                nextThink = Clock.Now + 0.15f;
                 Scan(0.15f);
             }
 
@@ -314,11 +279,11 @@ namespace Gnomes.NPC
                         if (patrolTime > 60f && Alert < 0.2f)
                         {
                             SetState(St.GoBed);
-                            Go(w.Layout.Spots["bed"].U(), GameConsts.OldManWalk);
+                            Go(w.Layout.Spots["bed"].G(), GameConsts.OldManWalk);
                             break;
                         }
                         var spots = new List<V3>(w.Layout.Spots.Values);
-                        Go(spots[Random.Range(0, spots.Count)].U(), GameConsts.OldManWalk);
+                        Go(spots[GMath.RandInt(0, spots.Count)].G(), GameConsts.OldManWalk);
                     }
                     break;
                 case St.Investigate:
@@ -333,7 +298,7 @@ namespace Gnomes.NPC
                     break;
                 case St.Search:
                     Stop();
-                    Look = transform.position + Quaternion.Euler(0, Mathf.Sin(stateTime * 1.5f) * 70f, 0) * transform.forward * 6f;
+                    Look = GlobalPosition + new Basis(Vector3.Up, Mathf.DegToRad(Mathf.Sin(stateTime * 1.5f) * 70f)) * Fwd * 6f;
                     if (stateTime > 4f)
                     {
                         SetState(St.Patrol);
@@ -388,7 +353,7 @@ namespace Gnomes.NPC
                         if (g != null && g.Status == PlayerStatus.Free && InReach(g, GameConsts.SwatterReach))
                         {
                             H.Flatten(g.PlayerId);
-                            w.Noise(g.transform.position, 20f, NoiseKind.Impact);
+                            w.Noise(g.GlobalPosition, 20f, NoiseKind.Impact);
                         }
                         else w.EmitSound(SoundId.Punch, HandPos, 1f);
                         targetId = 255;
@@ -416,33 +381,44 @@ namespace Gnomes.NPC
 
         bool InReach(GnomeBody g, float reach)
         {
-            var d = g.transform.position - transform.position;
-            return d.Flat().magnitude <= reach && g.transform.position.y <= GameConsts.OldManGrabMaxHeight;
+            var d = g.GlobalPosition - GlobalPosition;
+            return d.Flat().Length() <= reach && g.GlobalPosition.Y <= GameConsts.OldManGrabMaxHeight;
+        }
+
+        /// <summary>Is this point inside the beam of his torch (and the torch is on)?</summary>
+        public bool InTorch(Vector3 p)
+        {
+            if (torch == null || !torch.Visible) return false;
+            var to = p - torch.GlobalPosition;
+            var dir = -torch.GlobalBasis.Z.Normalized();
+            return to.Length() < torch.SpotRange && Mathf.RadToDeg(dir.AngleTo(to)) < torch.SpotAngle;
         }
 
         void Scan(float dt)
         {
             var w = W;
             float viewDist = GameConsts.OldManViewDist * ViewMul;
-            float cosFov = Mathf.Cos(GameConsts.OldManFovDeg * 0.5f * Mathf.Deg2Rad);
+            float cosFov = Mathf.Cos(Mathf.DegToRad(GameConsts.OldManFovDeg * 0.5f));
             var eye = Eye;
-            var fwd = transform.forward;
+            var fwd = Fwd;
             foreach (var g in w.Gnomes.Values)
             {
                 if (g.Status != PlayerStatus.Free) continue;
                 var to = g.Center - eye;
-                float dist = to.magnitude;
-                if (dist > viewDist) continue;
+                float dist = to.Length();
+                if (dist > viewDist || dist < 1e-3f) continue;
                 var dir = to / dist;
-                bool inCone = Vector3.Dot(dir.Flat().normalized, fwd) > cosFov || dist < 3.5f;
+                var flatDir = dir.Flat();
+                bool inCone = (flatDir.LengthSquared() > 1e-6f && flatDir.Normalized().Dot(fwd) > cosFov) || dist < 3.5f;
                 if (!inCone) continue;
-                if (Physics.Raycast(eye, dir, dist - 0.4f, Layers.World, QueryTriggerInteraction.Ignore))
+                if (Phys.Raycast(eye, dir, dist - 0.4f, Layers.Solid))
                 {
-                    if (Physics.Raycast(eye, (g.HeadPos - eye).normalized, Vector3.Distance(eye, g.HeadPos) - 0.3f, Layers.World, QueryTriggerInteraction.Ignore)) continue;
+                    var toHead = g.HeadPos - eye;
+                    if (Phys.Raycast(eye, toHead, toHead.Length() - 0.3f, Layers.Solid)) continue;
                 }
                 bool inTorch = InTorch(g.Center);
-                float vis = (1f - dist / viewDist) * (g.Crouching ? 0.45f : 1f) * (g.Velocity.sqrMagnitude > 1f ? 1.4f : 0.8f) * (inTorch ? 2f : 0.8f);
-                if (!inTorch && !NearLitLamp(w, g.Center)) vis *= 0.55f; // dark rooms are the gang's friend
+                float vis = (1f - dist / viewDist) * (g.Crouching ? 0.45f : 1f) * (g.Velocity.LengthSquared() > 1f ? 1.4f : 0.8f) * (inTorch ? 2f : 0.8f);
+                if (!inTorch && !w.IsLit(g.Center)) vis *= 0.55f; // dark rooms are the gang's friend
                 if (H.IsHidden(g)) vis *= 0.15f;
                 detect.TryGetValue(g.PlayerId, out float d0);
                 float d1 = Mathf.Min(1.5f, d0 + vis * dt * 6f);
@@ -455,27 +431,17 @@ namespace Gnomes.NPC
                         W.Noise(eye, 20f, NoiseKind.Voice);
                     }
                     targetId = g.PlayerId;
-                    lastSeen = g.transform.position;
-                    lastSeenTime = Time.time;
+                    lastSeen = g.GlobalPosition;
+                    lastSeenTime = Clock.Now;
                     Alert = 1f;
                     if (Mode != St.Chase) SetState(St.Chase);
                 }
                 if (targetId == g.PlayerId && d1 > 0.5f)
                 {
-                    lastSeen = g.transform.position;
-                    lastSeenTime = Time.time;
+                    lastSeen = g.GlobalPosition;
+                    lastSeenTime = Clock.Now;
                 }
             }
-        }
-
-        static bool NearLitLamp(GameWorld w, Vector3 p) => w.IsLit(p);
-
-        /// <summary>Is this point inside the beam of his torch (and the torch is on)?</summary>
-        public bool InTorch(Vector3 p)
-        {
-            if (!torch || !torch.enabled) return false;
-            var to = p - torch.transform.position;
-            return to.magnitude < torch.range && Vector3.Angle(torch.transform.forward, to) < torch.spotAngle * 0.5f;
         }
 
         void Chase(float dt)
@@ -488,25 +454,25 @@ namespace Gnomes.NPC
                 return;
             }
             Look = g.Center;
-            bool seen = Time.time - lastSeenTime < 1.6f;
+            bool seen = Clock.Now - lastSeenTime < 1.6f;
             if (!seen)
             {
                 Go(lastSeen, GameConsts.OldManRun);
-                if (Arrived(1.5f) || Time.time - lastSeenTime > 6f)
+                if (Arrived(1.5f) || Clock.Now - lastSeenTime > 6f)
                 {
                     targetId = 255;
                     SetState(St.Search);
                 }
                 return;
             }
-            Go(g.transform.position, GameConsts.OldManRun);
-            float flat = (g.transform.position - transform.position).Flat().magnitude;
+            Go(g.GlobalPosition, GameConsts.OldManRun);
+            float flat = (g.GlobalPosition - GlobalPosition).Flat().Length();
             if (flat > GameConsts.OldManReach + 0.4f)
             {
                 blockedTime = 0;
                 return;
             }
-            if (H.IsHidden(g) || g.transform.position.y > GameConsts.OldManGrabMaxHeight)
+            if (H.IsHidden(g) || g.GlobalPosition.Y > GameConsts.OldManGrabMaxHeight)
             {
                 // under the bed or on top of the wardrobe: grumble and give up after a while
                 blockedTime += dt;
@@ -515,7 +481,7 @@ namespace Gnomes.NPC
                     blockedTime = 0;
                     W.EmitSound(SoundId.Grumble, Eye, 1f);
                     anger++;
-                    detect[g.PlayerId] = 0.3f; // he'll need a fresh look before chasing again
+                    detect[g.PlayerId] = 0.3f;
                     targetId = 255;
                     SetState(St.Search);
                 }
@@ -538,9 +504,9 @@ namespace Gnomes.NPC
                 SetState(St.Search);
                 return;
             }
-            var dest = shelf != null ? shelf.AnchorPos("free", shelf.transform.position) + shelf.transform.forward * 1.5f : transform.position;
+            var dest = shelf != null ? shelf.AnchorPos("free", shelf.GlobalPosition) + (-shelf.GlobalBasis.Z.Normalized()) * 1.5f : GlobalPosition;
             Go(dest, GameConsts.OldManWalk * 1.2f);
-            Look = shelf != null ? shelf.transform.position : transform.position + transform.forward;
+            Look = shelf != null ? shelf.GlobalPosition : GlobalPosition + Fwd;
             if (Arrived(1.5f) || stateTime > 25f) SetState(St.Jarring);
         }
 
@@ -572,14 +538,13 @@ namespace Gnomes.NPC
 
         Mechanism FindPrankToFix()
         {
-            var w = W;
-            foreach (var f in w.Furniture)
+            foreach (var f in W.Furniture)
             {
                 if (f.Kind == "tv" && f.TvOn) return f.Mechs[0];
                 foreach (var m in f.Mechs)
                 {
                     if ((m.Role == "faucet" || m.Role == "tubFaucet") && m.IsOpen) return m;
-                    if (m.Role == "window" && m.IsOpen && Random.value < 0.3f) return m;
+                    if (m.Role == "window" && m.IsOpen && GMath.Rand01 < 0.3f) return m;
                 }
             }
             return null;
@@ -601,14 +566,14 @@ namespace Gnomes.NPC
                 SetState(St.Patrol);
                 return;
             }
-            var at = fixLamp.transform.position;
+            var at = fixLamp.GlobalPosition;
             Go(at, GameConsts.OldManWalk * 1.1f);
-            Look = at + Vector3.up * 3f;
-            if ((transform.position - at).Flat().magnitude < 3.4f || stateTime > 20f)
+            Look = at + Vector3.Up * 3f;
+            if ((GlobalPosition - at).Flat().Length() < 3.4f || stateTime > 20f)
             {
                 fixLamp.SetLights(true);
                 S?.Broadcast(new EventMsg { Type = EvType.Lamp, Id = fixLamp.Index, I = 1 });
-                W.EmitSound(SoundId.Click, at + Vector3.up * 3f, 0.8f);
+                W.EmitSound(SoundId.Click, at + Vector3.Up * 3f, 0.8f);
                 W.EmitSound(SoundId.Grumble, Eye, 1f);
                 fixLamp = null;
                 SetState(St.Search);
@@ -631,7 +596,7 @@ namespace Gnomes.NPC
             var front = fixTarget.HandleWorld;
             Go(front, GameConsts.OldManWalk * 1.1f);
             Look = front;
-            if ((transform.position - front).Flat().magnitude < 3.2f || stateTime > 20f)
+            if ((GlobalPosition - front).Flat().Length() < 3.2f || stateTime > 20f)
             {
                 W.HostSetMech(fixTarget, false);
                 W.EmitSound(SoundId.Grumble, Eye, 1f);
@@ -646,15 +611,15 @@ namespace Gnomes.NPC
         {
             if (!Authority) return;
             float r = radius * HearMul;
-            float d = Vector3.Distance(pos, Eye);
+            float d = pos.DistanceTo(Eye);
             if (d > r) return;
             float loud = 1f - d / r;
             if (Mode == St.Sleep)
             {
-                float sleepDepth = W != null && W.Night != null ? Mathf.Lerp(0.55f, 1.2f, W.Night.Progress01) : 1f;
+                float sleepDepth = W?.Night != null ? Mathf.Lerp(0.55f, 1.2f, W.Night.Progress01) : 1f;
                 float k = kind == NoiseKind.Break ? 0.9f : kind == NoiseKind.Clock || kind == NoiseKind.Voice ? 0.6f : kind == NoiseKind.Step ? 0.12f : 0.45f;
                 wake += loud * k * sleepDepth;
-                if (loud > 0.2f) Fx.Sparkles(W, Eye + Vector3.up, new Color32(255, 240, 150, 255), 1, 0.4f);
+                if (loud > 0.2f) Fx.Sparkles(W, Eye + Vector3.Up, new Color(1f, 0.94f, 0.6f), 1, 0.4f);
                 if (loud > investigateScore)
                 {
                     investigateScore = loud;
@@ -671,13 +636,40 @@ namespace Gnomes.NPC
                 if (Mode != St.Investigate)
                 {
                     SetState(St.Investigate);
-                    if (Time.time > nextGrumble)
+                    if (Clock.Now > nextGrumble)
                     {
-                        nextGrumble = Time.time + 4f;
+                        nextGrumble = Clock.Now + 4f;
                         W.EmitSound(SoundId.Grumble, Eye, 0.9f);
                     }
                 }
             }
+        }
+
+        /// <summary>A gnome kicked or hooked him.</summary>
+        public void OnPoked(byte pid, Vector3 point)
+        {
+            if (!Authority) return;
+            if (Mode == St.Sleep) wake += 0.6f;
+            else if (!Asleep)
+            {
+                detect[pid] = 1.2f;
+                targetId = pid;
+                lastSeen = point;
+                lastSeenTime = Clock.Now;
+                if (Mode == St.Patrol || Mode == St.Search || Mode == St.Investigate || Mode == St.Fix) SetState(St.Chase);
+            }
+        }
+
+        public void SleepDust(Vector3 pos)
+        {
+            if (!Authority) return;
+            if (pos.DistanceTo(GlobalPosition + Vector3.Up * 3f) > 8f || Mode == St.Sleep) return;
+            if (carried != 255) DropCarried();
+            Stop();
+            if (agent != null) agent.Enabled = false;
+            SetState(St.Doze);
+            Alert = 0;
+            W.EmitSound(SoundId.Snore, Eye, 1f);
         }
 
         /// <summary>Playtesting shortcuts (F8 / F9).</summary>
@@ -694,59 +686,33 @@ namespace Gnomes.NPC
             EnterSleep(false);
         }
 
-        /// <summary>A gnome kicked or hooked him.</summary>
-        public void OnPoked(byte pid, Vector3 point)
-        {
-            if (!Authority) return;
-            if (Mode == St.Sleep) wake += 0.6f;
-            else if (!Asleep)
-            {
-                detect[pid] = 1.2f;
-                targetId = pid;
-                lastSeen = point;
-                lastSeenTime = Time.time;
-                if (Mode == St.Patrol || Mode == St.Search || Mode == St.Investigate || Mode == St.Fix) SetState(St.Chase);
-            }
-        }
-
-        public void SleepDust(Vector3 pos)
-        {
-            if (!Authority) return;
-            if (Vector3.Distance(pos, transform.position + Vector3.up * 3f) > 8f || Mode == St.Sleep) return;
-            if (carried != 255) DropCarried();
-            Stop();
-            if (agent) agent.enabled = false;
-            SetState(St.Doze);
-            Alert = 0;
-            W.EmitSound(SoundId.Snore, Eye, 1f);
-        }
-
         // ================================================================== animation (everyone)
 
         void Animate(float dt)
         {
-            var vel = Authority ? (agent != null && agent.enabled ? agent.velocity : Vector3.zero) : velClient;
-            float speed = vel.Flat().magnitude;
+            var vel = Authority ? (agent != null && agent.Enabled ? agent.Velocity : Vector3.Zero) : velClient;
+            float speed = vel.Flat().Length();
             walkPhase += speed * dt * 0.9f;
             bool lying = Mode == St.Sleep;
             bool sitting = Mode == St.Doze;
-            float swing = Mathf.Clamp01(speed / 4f) * (Mode == St.Chase ? 1.4f : 1f);
+            float swing = Mathf.Clamp(speed / 4f, 0f, 1f) * (Mode == St.Chase ? 1.4f : 1f);
             float legA = lying ? 0 : Mathf.Sin(walkPhase) * 28f * swing;
             Rot(thighL, legA + (sitting ? -80f : 0), 0, 0);
             Rot(thighR, -legA + (sitting ? -80f : 0), 0, 0);
             Rot(shinL, Mathf.Max(0, -Mathf.Sin(walkPhase)) * 35f * swing + (sitting ? 70f : 0), 0, 0);
             Rot(shinR, Mathf.Max(0, Mathf.Sin(walkPhase)) * 35f * swing + (sitting ? 70f : 0), 0, 0);
-            if (hips) hips.localPosition = hipsRestPos + Vector3.up * (Mathf.Abs(Mathf.Sin(walkPhase)) * 0.12f * swing - (sitting ? 2.6f : 0f));
+            if (hips != null) hips.Position = hipsRestPos + Vector3.Up * (Mathf.Abs(Mathf.Sin(walkPhase)) * 0.12f * swing - (sitting ? 2.6f : 0f));
             float lean = Mode == St.Chase ? 12f : Mode == St.Search ? 0 : 4f * swing;
-            float breathe = lying || sitting ? Mathf.Sin(Time.time * 1.7f) * 3f : 0f;
+            float breathe = lying || sitting ? Mathf.Sin(Clock.Now * 1.7f) * 3f : 0f;
             Rot(spine, lean + breathe + (sitting ? 15f : 0), 0, 0);
             // head: look at the target / around, droop when dozing
             float headYaw = 0, headPitch = 0;
-            if (Look != Vector3.zero && !lying && !sitting)
+            if (Look != Vector3.Zero && !lying && !sitting)
             {
-                var local = transform.InverseTransformPoint(Look);
-                headYaw = Mathf.Clamp(Mathf.Atan2(local.x, local.z) * Mathf.Rad2Deg, -60f, 60f);
-                headPitch = Mathf.Clamp(-Mathf.Atan2(local.y - 6f, new Vector2(local.x, local.z).magnitude) * Mathf.Rad2Deg, -30f, 45f);
+                var lg = ToLocal(Look);
+                var local = new Vector3(lg.X, lg.Y, -lg.Z); // Unity-style local (z forward)
+                headYaw = Mathf.Clamp(Mathf.RadToDeg(Mathf.Atan2(local.X, local.Z)), -60f, 60f);
+                headPitch = Mathf.Clamp(-Mathf.RadToDeg(Mathf.Atan2(local.Y - 6f, new Vector2(local.X, local.Z).Length())), -30f, 45f);
             }
             if (sitting) headPitch = 35f;
             Rot(neck, headPitch * 0.4f, headYaw * 0.4f, 0);
@@ -767,12 +733,12 @@ namespace Gnomes.NPC
                     rFore = -40f;
                     break;
                 case St.Swat:
-                    float k = Mathf.Clamp01(stateTime / 0.65f);
+                    float k = Mathf.Clamp(stateTime / 0.65f, 0f, 1f);
                     rArmX = k < 0.6f ? Mathf.Lerp(0, -170f, k / 0.6f) : Mathf.Lerp(-170f, -40f, (k - 0.6f) / 0.4f);
                     rFore = -20f;
                     break;
                 case St.Chase:
-                    rArmX = -60f + Mathf.Sin(Time.time * 12f) * 30f;
+                    rArmX = -60f + Mathf.Sin(Clock.Now * 12f) * 30f;
                     lArmX = -50f;
                     break;
                 case St.Fix:
@@ -783,32 +749,29 @@ namespace Gnomes.NPC
                     lArmX = 0;
                     break;
             }
-            if (!lying && Mode != St.Sleep && torch && torch.enabled) lArmX = Mathf.Min(lArmX, -55f); // hold the torch forward
+            if (!lying && torch != null && torch.Visible) lArmX = Mathf.Min(lArmX, -55f); // hold the torch forward
             Rot(upArmR, rArmX, 0, 0);
             Rot(upArmL, lArmX, 0, 0);
             Rot(foreArmR, rFore, 0, 0);
             Rot(foreArmL, lFore, 0, 0);
-            // the sleeping pose sits the root on the bed: handled on the host by EnterSleep; clients get the pose
         }
 
-        void Rot(Transform t, float x, float y, float z)
+        void Rot(Node3D t, float x, float y, float z)
         {
             if (t == null || !rest.TryGetValue(t, out var r)) return;
-            t.localRotation = r * Quaternion.Euler(x, y, z);
+            t.Quaternion = r * Conv.UEuler(x, y, z);
         }
 
-        protected override void ApplyClientPose(Vector3 pos, float yawDeg)
+        protected override void ApplyClientPose(Vector3 pos, float yaw)
         {
             if (Mode == St.Sleep && bed != null)
             {
-                var fwd = bed.transform.forward;
-                transform.SetPositionAndRotation(pos, Quaternion.LookRotation(Vector3.up, -fwd));
-                col.enabled = false;
+                GlobalTransform = SleepTransform();
+                col.Disabled = true;
                 return;
             }
-            col.enabled = Mode != St.Doze;
-            rb.MovePosition(pos);
-            transform.SetPositionAndRotation(pos, Quaternion.Euler(0, yawDeg, 0));
+            col.Disabled = Mode == St.Doze;
+            base.ApplyClientPose(pos, yaw);
         }
     }
 }
