@@ -79,6 +79,7 @@ namespace Gnomes.World
             p.HalfHeight = Mathf.Max(0.02f, -mn.y);
             p.SetAuthority(authority);
             if (main == null && hasBoxes) main = go.GetComponentInChildren<Collider>();
+            if (def.HasTag("toiletPaper")) PaperTrail.Attach(p);
             return p;
         }
 
