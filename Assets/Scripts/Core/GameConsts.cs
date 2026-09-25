@@ -35,6 +35,8 @@ namespace Gnomes.Core
         public const float YarnRangeLong = 12f;
         public const float YarnRangeEndless = 17f;
         public const float InteractRange = 2.6f;
+        /// <summary>Reach for fridge doors, taps, flush buttons: a bit more generous so a 25 cm gnome can hop and tug.</summary>
+        public const float MechReach = 3.4f;
         public const float HoldStrength = 95f; // newtons available to hold/drag objects
         public const float ClimbStrength = 130f; // yarn tension when climbing (weight = 72)
         public const float YarnPullStrength = 70f; // pulling things on the yarn

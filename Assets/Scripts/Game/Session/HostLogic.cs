@@ -799,7 +799,7 @@ namespace Gnomes.Session
                 {
                     if (slot.Status != PlayerStatus.Free) return;
                     var m = w.GetMech(a.Id);
-                    if (m == null || m.HumanOnly || Vector3.Distance(me, m.HandleWorld) > GameConsts.InteractRange + 2f) return;
+                    if (m == null || m.HumanOnly || Vector3.Distance(me, m.HandleWorld) > GameConsts.MechReach + 2f) return;
                     Interact(slot, m);
                     break;
                 }
@@ -807,7 +807,7 @@ namespace Gnomes.Session
                 {
                     if (slot.Status != PlayerStatus.Free) return;
                     var m = w.GetMech(a.Id);
-                    if (m == null || m.Role != "jar" || Vector3.Distance(me, m.HandleWorld) > GameConsts.InteractRange + 2f) return;
+                    if (m == null || m.Role != "jar" || Vector3.Distance(me, m.HandleWorld) > GameConsts.MechReach + 2f) return;
                     foreach (var other in S.Players.Values)
                         if (other.Status == PlayerStatus.Trapped && other.JarMech == m.Index)
                         {

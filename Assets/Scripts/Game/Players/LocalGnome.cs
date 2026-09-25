@@ -740,7 +740,7 @@ namespace Gnomes.Players
                 if (m.HumanOnly || m.Role == "mousetrap") continue;
                 var to = m.HandleWorld - eye;
                 float d = to.magnitude;
-                if (d > GameConsts.InteractRange || d < 0.01f) continue;
+                if (d > GameConsts.MechReach || d < 0.01f) continue;
                 float c = Vector3.Dot(to / d, dir);
                 if (c > best)
                 {
