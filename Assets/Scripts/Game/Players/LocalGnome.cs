@@ -136,6 +136,16 @@ namespace Gnomes.Players
             Cam.backgroundColor = RenderSettings.fogColor;
             camGo.AddComponent<AudioListener>();
             camGo.tag = "MainCamera";
+            // a faint "night eyes" glow around the player so dark rooms stay playable (local only)
+            var glow = new GameObject("NightEyes").AddComponent<Light>();
+            glow.transform.SetParent(camPivot, false);
+            glow.transform.localPosition = new Vector3(0, 0.4f, 0.3f);
+            glow.type = LightType.Point;
+            glow.range = 7f;
+            glow.intensity = 0.45f;
+            glow.color = new Color(0.72f, 0.8f, 1f);
+            glow.shadows = LightShadows.None;
+            glow.renderMode = LightRenderMode.ForcePixel;
             Avatar.SetFirstPerson(true);
         }
 
