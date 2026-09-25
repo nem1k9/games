@@ -229,6 +229,7 @@ namespace SockGang.UI
 
         void UpdateToasts()
         {
+            toastBox.Visible = App.Screen != AppScreen.Report;
             var list = App.Toasts;
             while (toastBox.GetChildCount() < list.Count) toastBox.AddChild(Text("", 26));
             for (int i = 0; i < toastBox.GetChildCount(); i++)
@@ -524,7 +525,7 @@ namespace SockGang.UI
                 bool done = i < r.TaskDone.Length && r.TaskDone[i];
                 v.AddChild(Text((done ? "[+] " : "[-] ") + t.Text(Loc.Current), 20, done ? new Color(0.55f, 1f, 0.55f) : new Color(1f, 0.6f, 0.55f)));
             }
-            v.AddChild(Text($"{Loc.T("chaos")}: {r.Chaos} {Loc.T("chaosReport")}", 22));
+            v.AddChild(Text($"{Loc.T("chaos")}: {Loc.ChaosCount(r.Chaos)}", 22));
             var mats = new List<string>();
             for (int i = 0; i < 5; i++) if (r.Haul[i] > 0) mats.Add($"{Loc.MatName((Mat)i)} +{r.Haul[i]}");
             v.AddChild(Text($"{Loc.T("materials")}: {(mats.Count > 0 ? string.Join(", ", mats) : "—")}", 20, null, true));

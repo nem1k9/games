@@ -104,7 +104,7 @@ namespace Gnomes.Core
                 "Друзья в той же сети вводят один из IP выше. Через интернет: Radmin VPN / ZeroTier (одна виртуальная сеть) или проброс UDP-порта на роутере.",
                 "Friends on the same network enter one of the IPs above. Over the internet: Radmin VPN / ZeroTier (one virtual network) or forward the UDP port on your router." },
             ["oldManAwake"] = new[] { "Дед бродит по дому", "Grandpa is wandering around" },
-            ["portalHint"] = new[] { "Залезь в носочный лаз, чтобы начать ночь. Верстак-вязальня — слева, Великий Носок — в глубине.", "Crawl into the sock tunnel to start the night. The knitting corner is on the left, the Great Sock at the back." },
+            ["portalHint"] = new[] { "Залезь в носочный лаз (он за спиной), чтобы начать ночь. Великий Носок — впереди, верстак-вязальня — справа.", "Crawl into the sock tunnel (behind you) to start the night. The Great Sock is ahead, the knitting corner on the right." },
             ["craftHostOnly"] = new[] { "Прогресс общий: вяжет хост банды.", "Progress is shared: the host's gang does the knitting." },
             ["waitHost"] = new[] { "Ждём, когда хост продолжит...", "Waiting for the host to continue..." },
             ["yarn"] = new[] { "Нитка", "Yarn" },
@@ -146,7 +146,6 @@ namespace Gnomes.Core
             ["fired"] = new[] { "Банда распущена! Три выговора. Начинаем с первой ночи...", "The gang is disbanded! Three strikes. Back to night one..." },
             ["continue"] = new[] { "Продолжить", "Continue" },
             ["materials"] = new[] { "Материалы", "Materials" },
-            ["chaosReport"] = new[] { "вещей не на своих местах", "things out of place" },
             ["grandpaMorning0"] = new[] { "...спокойно выпил чай. Скукота.", "...calmly drank his tea. Boring." },
             ["grandpaMorning1"] = new[] { "...полчаса искал очки. Неплохо!", "...spent half an hour looking for his glasses. Not bad!" },
             ["grandpaMorning2"] = new[] { "...орал на кота до обеда. Отлично!", "...yelled at the cat until lunch. Great!" },
@@ -183,5 +182,21 @@ namespace Gnomes.Core
         public static void Add(string key, string ru, string en) => table[key] = new[] { ru, en };
 
         public static string MatName(Mat m) => T("mat" + (int)m);
+
+        /// <summary>Russian plural form of a count: one (1, 21), few (2-4, 22-24) or many (0, 5-20, 25...).</summary>
+        public static string RuPlural(int n, string one, string few, string many)
+        {
+            n = System.Math.Abs(n) % 100;
+            if (n >= 11 && n <= 14) return many;
+            int d = n % 10;
+            if (d == 1) return one;
+            if (d >= 2 && d <= 4) return few;
+            return many;
+        }
+
+        /// <summary>"N things out of place" in the current language.</summary>
+        public static string ChaosCount(int n) => Current == Lang.Ru
+            ? n + " " + RuPlural(n, "вещь", "вещи", "вещей") + " не на своих местах"
+            : n + (n == 1 ? " thing" : " things") + " out of place";
     }
 }

@@ -450,7 +450,7 @@ namespace Gnomes.Session
             foreach (var p in Players.Values)
             {
                 var pos = world.SpawnPoint(i++);
-                float yaw = world.Kind == LevelKind.House ? Mathf.PI : 0f;
+                float yaw = Mathf.PI; // face into the level: the house interior / the village and the Great Sock
                 if (p.Id == LocalId) LocalGnome.Create(world, p.Id, p.Name, p.Color, pos, yaw);
                 else RemoteGnome.Create(world, p.Id, p.Name, p.Color, pos);
                 if (world.Gnomes.TryGetValue(p.Id, out var g))

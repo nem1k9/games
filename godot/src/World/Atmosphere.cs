@@ -27,7 +27,7 @@ namespace SockGang.World
                 GlowIntensity = 0.6f,
                 GlowBloom = 0.05f,
                 GlowHdrThreshold = 1.1f,
-                SsaoEnabled = true,
+                SsaoEnabled = RenderingServer.GetCurrentRenderingMethod() == "forward_plus",
                 SsaoRadius = 0.8f,
                 SsaoIntensity = 1.2f,
             };

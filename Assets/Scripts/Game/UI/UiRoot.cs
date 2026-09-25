@@ -679,7 +679,7 @@ namespace Gnomes.UI
             }
             GUI.color = Color.white;
             GUILayout.Space(8 * u);
-            GUILayout.Label($"{Loc.T("chaos")}: <b>{r.Chaos}</b> {Loc.T("chaosReport")}", label);
+            GUILayout.Label($"{Loc.T("chaos")}: {Loc.ChaosCount(r.Chaos)}", label);
             var mats = new List<string>();
             for (int i = 0; i < 5; i++) if (r.Haul[i] > 0) mats.Add($"{Loc.MatName((Mat)i)} +{r.Haul[i]}");
             GUILayout.Label($"{Loc.T("materials")}: {(mats.Count > 0 ? string.Join(", ", mats) : "—")}", small);

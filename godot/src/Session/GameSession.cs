@@ -437,7 +437,7 @@ namespace SockGang.Session
             foreach (var p in Players.Values)
             {
                 var pos = world.SpawnPoint(i++);
-                float yaw = world.Kind == LevelKind.House ? Conv.Yaw(Mathf.Pi) : 0f;
+                float yaw = Conv.Yaw(Mathf.Pi); // face into the level: the house interior / the village and the Great Sock
                 if (p.Id == LocalId) LocalGnome.Create(world, p.Id, p.Name, HatColor(p.Hat), pos, yaw);
                 else RemoteGnome.Create(world, p.Id, p.Name, HatColor(p.Hat), pos);
                 if (world.Gnomes.TryGetValue(p.Id, out var g))

@@ -301,9 +301,11 @@ namespace SockGang.Players
             camPivot.GlobalTransform = new Transform3D(rot, eyePos);
             if (ThirdPerson || Status != PlayerStatus.Free)
             {
-                var back = rot * new Vector3(0.35f, 0.35f, 2.6f);
+                // in a jar the lid right above the head would pin the camera to the hat: look through the glass instead
+                bool jarred = Status == PlayerStatus.Trapped;
+                var back = rot * (jarred ? new Vector3(0f, 0.15f, 2.4f) : new Vector3(0.35f, 0.35f, 2.6f));
                 float dist = back.Length();
-                if (Phys.SphereCast(eyePos, 0.15f, back, dist, Layers.Solid, out var hit)) dist = Mathf.Max(0.3f, hit.Distance - 0.05f);
+                if (Phys.SphereCast(eyePos, 0.15f, back, dist, jarred ? Layers.World : Layers.Solid, out var hit)) dist = Mathf.Max(0.3f, hit.Distance - 0.05f);
                 Cam.GlobalTransform = new Transform3D(rot, eyePos + back.Normalized() * dist);
                 if (Avatar.FirstPerson) Avatar.SetFirstPerson(false);
             }

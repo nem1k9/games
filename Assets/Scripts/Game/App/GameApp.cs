@@ -268,10 +268,11 @@ namespace Gnomes.App
             // orbiting menu camera over the village
             if (Screen != AppScreen.Playing && Screen != AppScreen.Report && menuCam != null && menuCam.gameObject.activeSelf)
             {
-                menuOrbit += Time.deltaTime * 0.08f;
-                var c = new Vector3(0, 1.2f, -1f);
-                menuCam.transform.position = c + new Vector3(Mathf.Sin(menuOrbit) * 9f, 1.6f + Mathf.Sin(menuOrbit * 0.7f) * 0.4f, Mathf.Cos(menuOrbit) * 7f);
-                menuCam.transform.LookAt(c + Vector3.down * 0.4f);
+                // sway gently between the tunnel and the Great Sock, clear of the porch ceiling and walls
+                menuOrbit += Time.deltaTime * 0.12f;
+                float s = Mathf.Sin(Mathf.Sin(menuOrbit) * 0.9f);
+                menuCam.transform.position = new Vector3(s * 3f, 2.2f, 4.6f);
+                menuCam.transform.LookAt(new Vector3(-s * 1.2f, 0.8f, -5f));
             }
         }
 

@@ -218,6 +218,7 @@ namespace SockGang.App
         public void OnNightEnd(NightReport r)
         {
             Report = r;
+            toasts.Clear();
             Paused = CraftOpen = SockOpen = ChatOpen = false;
             Screen = AppScreen.Report;
             Sfx.I?.PlayUi(r.Passed ? SoundId.TaskDone : SoundId.Death);
@@ -295,13 +296,13 @@ namespace SockGang.App
             var wantMode = GameplayInput ? Input.MouseModeEnum.Captured : Input.MouseModeEnum.Visible;
             if (Input.MouseMode != wantMode) Input.MouseMode = wantMode;
 
-            // orbiting menu camera over the village
+            // menu camera sways gently between the tunnel and the Great Sock, clear of the porch ceiling and walls
             if (Screen != AppScreen.Playing && Screen != AppScreen.Report && menuCam != null && menuCam.Current)
             {
-                menuOrbit += Clock.Dt * 0.08f;
-                var c = new Vector3(0, 1.2f, 1f);
-                menuCam.GlobalPosition = c + new Vector3(Mathf.Sin(menuOrbit) * 9f, 1.6f + Mathf.Sin(menuOrbit * 0.7f) * 0.4f, Mathf.Cos(menuOrbit) * 7f);
-                menuCam.LookAt(c + Vector3.Down * 0.4f, Vector3.Up);
+                menuOrbit += Clock.Dt * 0.12f;
+                float s = Mathf.Sin(Mathf.Sin(menuOrbit) * 0.9f);
+                menuCam.GlobalPosition = new Vector3(s * 3f, 2.2f, -4.6f);
+                menuCam.LookAt(new Vector3(-s * 1.2f, 0.8f, 5f), Vector3.Up);
             }
         }
 
