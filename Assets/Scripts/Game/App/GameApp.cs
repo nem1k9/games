@@ -71,6 +71,7 @@ namespace Gnomes.App
             Sfx.Create(transform);
             Sfx.I.Volume = Settings.Volume;
             gameObject.AddComponent<UiRoot>();
+            gameObject.AddComponent<DebugOverlay>();
             ShowMenuBackdrop();
         }
 

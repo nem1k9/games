@@ -147,6 +147,9 @@ namespace Gnomes.Session
             GameApp.I?.OnNightEnd(report);
         }
 
+        /// <summary>Playtesting shortcut (F7): end the night as if dawn came.</summary>
+        public void DebugEndNight() => EndNight(true);
+
         /// <summary>Called by the UI when the host presses "continue" on the report.</summary>
         public void ContinueAfterReport()
         {

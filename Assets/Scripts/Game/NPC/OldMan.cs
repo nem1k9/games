@@ -632,6 +632,20 @@ namespace Gnomes.NPC
             }
         }
 
+        /// <summary>Playtesting shortcuts (F8 / F9).</summary>
+        public void DebugWake()
+        {
+            if (Authority && Mode == St.Sleep) wake = 1f;
+        }
+
+        public void DebugSleep()
+        {
+            if (!Authority || Mode == St.Sleep) return;
+            if (carried != 255) DropCarried();
+            targetId = 255;
+            EnterSleep(false);
+        }
+
         /// <summary>A gnome kicked or hooked him.</summary>
         public void OnPoked(byte pid, Vector3 point)
         {
