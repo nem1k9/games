@@ -32,6 +32,7 @@ namespace SockGang.NPC
 
         float wake;
         float stateTime;
+        float searchYaw; // facing when the search started: he looks left and right around it
         byte targetId = 255;
         Vector3 lastSeen;
         float lastSeenTime;
@@ -157,6 +158,7 @@ namespace SockGang.NPC
         {
             State = (byte)s;
             stateTime = 0;
+            if (s == St.Search) searchYaw = BodyYaw;
         }
 
         float SpeedMul => 1f + Mathf.Min(0.35f, (Mathf.Max(1, S != null ? S.Night : 1) - 1) * 0.06f);
@@ -298,7 +300,7 @@ namespace SockGang.NPC
                     break;
                 case St.Search:
                     Stop();
-                    Look = GlobalPosition + new Basis(Vector3.Up, Mathf.DegToRad(Mathf.Sin(stateTime * 1.5f) * 70f)) * Fwd * 6f;
+                    Look = GlobalPosition + GMath.YawForward(searchYaw + Mathf.DegToRad(Mathf.Sin(stateTime * 1.5f) * 70f)) * 6f;
                     if (stateTime > 4f)
                     {
                         SetState(St.Patrol);
@@ -676,6 +678,12 @@ namespace SockGang.NPC
         public void DebugWake()
         {
             if (Authority && Mode == St.Sleep) wake = 2f; // > 1 so this frame's decay can't undo it
+        }
+
+        /// <summary>Test hook: start looking around as if he heard something.</summary>
+        public void DebugSearch()
+        {
+            if (Authority && Mode != St.Sleep) SetState(St.Search);
         }
 
         public void DebugSleep()

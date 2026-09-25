@@ -47,6 +47,21 @@ namespace SockGang.Dev
 
         async Task Wait(float seconds) => await ToSignal(GetTree().CreateTimer(seconds, true, true), SceneTreeTimer.SignalName.Timeout);
 
+        /// <summary>Total absolute turning (degrees) of a yaw over the given time.</summary>
+        async Task<float> YawTravel(Func<float> yaw, float seconds)
+        {
+            float total = 0, last = yaw(), t = 0;
+            while (t < seconds)
+            {
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                t += (float)GetProcessDeltaTime();
+                float y = yaw();
+                total += Mathf.Abs(Mathf.RadToDeg(Mathf.AngleDifference(last, y)));
+                last = y;
+            }
+            return total;
+        }
+
         async Task<bool> WaitFor(Func<bool> cond, float timeout, string what)
         {
             float t = 0;
@@ -220,8 +235,12 @@ namespace SockGang.Dev
             w.OldMan.DebugWake();
             await WaitFor(() => w.OldMan.Mode != OldMan.St.Sleep && w.OldMan.Mode != OldMan.St.WakeUp, 6, "grandpa stands up");
             var p0 = w.OldMan.GlobalPosition;
-            await Wait(4f);
+            float walkTurn = await YawTravel(() => w.OldMan.BodyYaw, 4f);
+            Check(walkTurn < 540f, $"grandpa does not spin while walking (turned {walkTurn:0} deg in 4 s)");
             Check(w.OldMan.GlobalPosition.DistanceTo(p0) > 1f || w.OldMan.Mode == OldMan.St.Fix, $"grandpa walks around ({w.OldMan.Mode}, moved {w.OldMan.GlobalPosition.DistanceTo(p0):0.0})");
+            w.OldMan.DebugSearch();
+            float searchTurn = await YawTravel(() => w.OldMan.BodyYaw, 3.5f);
+            Check(searchTurn < 400f, $"grandpa looks around without spinning (turned {searchTurn:0} deg in 3.5 s)");
             g.Teleport(w.OldMan.GlobalPosition + GMath.YawForward(w.OldMan.BodyYaw) * 9f + Vector3.Up * 0.2f, 0);
             await Wait(0.5f);
             LookAt(g, w.OldMan.GlobalPosition + Vector3.Up * 4f);

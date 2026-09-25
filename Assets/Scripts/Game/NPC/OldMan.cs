@@ -34,6 +34,7 @@ namespace Gnomes.NPC
 
         float wake; // sleeping: reaches 1 -> wakes up
         float stateTime;
+        float searchYaw; // facing when the search started: he looks left and right around it
         byte targetId = 255;
         Vector3 lastSeen;
         float lastSeenTime;
@@ -195,6 +196,7 @@ namespace Gnomes.NPC
         {
             State = (byte)s;
             stateTime = 0;
+            if (s == St.Search) searchYaw = transform.eulerAngles.y;
         }
 
         float SpeedMul => 1f + Mathf.Min(0.35f, (Mathf.Max(1, S != null ? S.Night : 1) - 1) * 0.06f);
@@ -333,7 +335,7 @@ namespace Gnomes.NPC
                     break;
                 case St.Search:
                     Stop();
-                    Look = transform.position + Quaternion.Euler(0, Mathf.Sin(stateTime * 1.5f) * 70f, 0) * transform.forward * 6f;
+                    Look = transform.position + Quaternion.Euler(0, searchYaw + Mathf.Sin(stateTime * 1.5f) * 70f, 0) * Vector3.forward * 6f;
                     if (stateTime > 4f)
                     {
                         SetState(St.Patrol);

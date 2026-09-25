@@ -91,31 +91,39 @@ namespace SockGang.NPC
         {
             if (!Enabled) return Pos;
             if (hasDestination && (path.Length == 0 || Clock.Now >= repathAt)) Repath();
-            Vector3 desired = Vector3.Zero;
+            float speed = Velocity.Length();
+            float wantSpeed = 0f;
+            Vector3 dir = speed > 1e-4f ? Velocity / speed : Vector3.Zero;
             if (HasPath)
             {
+                // skip corners we are close to or have already passed (so we never orbit a corner)
+                float reach = Mathf.Max(0.35f, speed * 0.2f);
+                while (corner < path.Length - 1 && (Flat(path[corner] - Pos).Length() < reach || Passed(corner))) corner++;
                 var target = path[corner];
-                var to = target - Pos;
-                to.Y = 0;
+                var to = Flat(target - Pos);
                 float remaining = RemainingDistance;
-                while (to.Length() < 0.25f && corner < path.Length - 1)
-                {
-                    corner++;
-                    target = path[corner];
-                    to = target - Pos;
-                    to.Y = 0;
-                }
                 if (remaining > StoppingDistance && to.LengthSquared() > 1e-6f)
                 {
-                    float slow = Mathf.Clamp(remaining / 1.5f, 0.3f, 1f); // ease into the destination
-                    desired = to.Normalized() * Speed * slow;
+                    dir = to.Normalized(); // steer straight at the corner; the body turns smoothly on its own
+                    wantSpeed = Speed * Mathf.Clamp(remaining / 1.5f, 0.3f, 1f); // ease into the destination
                 }
                 // follow the navmesh height
                 Pos.Y = Mathf.Lerp(Pos.Y, target.Y, Mathf.Clamp(dt * 8f, 0f, 1f));
             }
-            Velocity = GMath.MoveTowards(Velocity, desired, Acceleration * dt);
+            speed = Mathf.MoveToward(speed, wantSpeed, Acceleration * dt);
+            Velocity = dir * speed;
             Pos += Velocity * dt;
             return Pos;
+        }
+
+        static Vector3 Flat(Vector3 v) => new Vector3(v.X, 0, v.Z);
+
+        /// <summary>True once we are beyond the corner along the segment leading into it.</summary>
+        bool Passed(int i)
+        {
+            if (i <= 0) return false;
+            var seg = Flat(path[i] - path[i - 1]);
+            return seg.LengthSquared() > 1e-4f && seg.Dot(Flat(Pos - path[i])) > 0f;
         }
     }
 }
