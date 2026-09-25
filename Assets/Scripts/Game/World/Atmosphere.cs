@@ -83,7 +83,7 @@ namespace Gnomes.World
             go.transform.position = new Vector3(28, 0, 40);
             go.AddComponent<MeshFilter>().sharedMesh = m;
             var mr = go.AddComponent<MeshRenderer>();
-            mr.sharedMaterial = new Material(ModelLibrary.FindShader("Unlit/Color", "Universal Render Pipeline/Unlit")) { color = new Color(0.9f, 0.92f, 1f) };
+            mr.sharedMaterial = ModelLibrary.UnlitColor(new Color(0.9f, 0.92f, 1f));
             mr.shadowCastingMode = ShadowCastingMode.Off;
             var moon = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             Object.Destroy(moon.GetComponent<Collider>());
@@ -91,7 +91,7 @@ namespace Gnomes.World
             moon.transform.SetParent(w.transform, false);
             moon.transform.position = go.transform.position - moonDir * 260f;
             moon.transform.localScale = Vector3.one * 26f;
-            moon.GetComponent<MeshRenderer>().sharedMaterial = new Material(ModelLibrary.FindShader("Unlit/Color", "Universal Render Pipeline/Unlit")) { color = new Color(0.95f, 0.93f, 0.8f) };
+            moon.GetComponent<MeshRenderer>().sharedMaterial = ModelLibrary.UnlitColor(new Color(0.95f, 0.93f, 0.8f));
             moon.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off;
         }
     }

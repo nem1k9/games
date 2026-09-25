@@ -1,5 +1,7 @@
 <Project>
   <PropertyGroup>
+    <!-- several projects live in one folder: give each its own obj/ so NuGet assets files don't clash -->
+    <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)obj/$(MSBuildProjectName)/</BaseIntermediateOutputPath>
     <LangVersion>9.0</LangVersion>
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>

@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Unit, rules and network tests
+        run: dotnet test Tests/Gnomes.Tests -c Release --logger "console;verbosity=normal"
+
+      - name: Compile Unity scripts against UnityEngine/UnityEditor reference assemblies
+        run: dotnet build tools/UnityCheck/Editor.csproj -c Release -warnaserror:CS0108,CS0114,CS0162
+
+      - name: Every asset has a .meta file
+        run: python3 tools/gen_meta.py --check

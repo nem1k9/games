@@ -21,8 +21,15 @@ namespace Gnomes.App
         {
             if (GameApp.I != null) return;
             // switch off whatever the default scene had (camera, sun) - we build everything ourselves
-            foreach (var cam in UnityEngine.Object.FindObjectsOfType<Camera>()) cam.gameObject.SetActive(false);
-            foreach (var l in UnityEngine.Object.FindObjectsOfType<Light>()) if (l.type == LightType.Directional) l.gameObject.SetActive(false);
+#if UNITY_2023_1_OR_NEWER
+            var cams = UnityEngine.Object.FindObjectsByType<Camera>(FindObjectsSortMode.None);
+            var lights = UnityEngine.Object.FindObjectsByType<Light>(FindObjectsSortMode.None);
+#else
+            var cams = UnityEngine.Object.FindObjectsOfType<Camera>();
+            var lights = UnityEngine.Object.FindObjectsOfType<Light>();
+#endif
+            foreach (var cam in cams) cam.gameObject.SetActive(false);
+            foreach (var l in lights) if (l.type == LightType.Directional) l.gameObject.SetActive(false);
             var go = new GameObject("SockGang");
             UnityEngine.Object.DontDestroyOnLoad(go);
             go.AddComponent<GameApp>();

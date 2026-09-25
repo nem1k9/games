@@ -25,6 +25,15 @@ namespace Gnomes.Rendering
         public static Material EmissiveMaterial { get { EnsureMaterials(); return emitMat; } }
         public static Material GlassMaterial { get { EnsureMaterials(); return glassMat; } }
 
+        /// <summary>A new flat unlit material of the given colour (sky objects, markers).</summary>
+        public static Material UnlitColor(Color c)
+        {
+            var src = Resources.Load<Material>("Materials/GnomeUnlitColor");
+            var m = src != null ? new Material(src) : new Material(FindShader("Unlit/Color", "Universal Render Pipeline/Unlit"));
+            m.color = c;
+            return m;
+        }
+
         public static ModelData Get(string name)
         {
             if (models.TryGetValue(name, out var m)) return m;

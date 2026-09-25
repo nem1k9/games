@@ -7,7 +7,11 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="UnityEngine.Modules" Version="2021.3.33" PrivateAssets="all" IncludeAssets="compile" />
-    <PackageReference Include="Unity3D.SDK" Version="2021.1.14.1" PrivateAssets="all" IncludeAssets="compile" />
+    <PackageReference Include="Unity3D.SDK" Version="2021.1.14.1" PrivateAssets="all" ExcludeAssets="all" GeneratePathProperty="true" NoWarn="NU1701" />
+    <Reference Include="UnityEditor">
+      <HintPath>$(PkgUnity3D_SDK)/lib/UnityEditor.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Compile Include="$(RepoRoot)Assets/Editor/**/*.cs" />
     <ProjectReference Include="Game.csproj" />
     <ProjectReference Include="Core.csproj" />
