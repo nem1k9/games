@@ -422,6 +422,9 @@ namespace Gnomes.Core.Protocol
         Mech = 15, // Id = mech index, I = state (instant change)
         Banked = 16, // S = kind, I = value (haul notification)
         Honk = 17, // P = player id, Pos
+        Tie = 18, // Id = tie id, I = prop A (0 = world), P = unused, S = "propB" (or ""), Pos = world A / local A, Vel = world B / local B, F = length
+        Stun = 19, // P = player id, F = seconds
+        Untie = 20, // Id = tie id
     }
 
     public struct EventMsg

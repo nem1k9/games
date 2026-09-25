@@ -56,32 +56,51 @@ namespace Gnomes.Players
             Col.center = new Vector3(0, h / 2, 0);
         }
 
-        /// <summary>World-space hand targets for the avatar from an arm state.</summary>
+        /// <summary>World-space hand targets and yarn for the avatar from an arm state.</summary>
         protected void AvatarHands(ArmState arms, Vector3 fallbackLook)
         {
             if (Avatar == null) return;
             var right = YawRot * Vector3.right;
-            Vector3 hand;
+            var chest = transform.position + Vector3.up * (Crouching ? 0.4f : 0.55f) + YawRot * Vector3.forward * 0.25f;
+            Vector3 hand = fallbackLook;
             bool active = true;
+            bool yarnOn = false;
+            Vector3 yarnEnd = Vector3.zero;
+            var world = GameWorld.Current;
             switch (arms.Mode)
             {
                 case ArmMode.HoldProp:
-                    var prop = GameWorld.Current != null ? GameWorld.Current.GetProp(arms.PropId) : null;
+                    var prop = world != null ? world.GetProp(arms.PropId) : null;
                     hand = prop != null ? prop.transform.TransformPoint(arms.Anchor.U()) : arms.Hand.U();
                     break;
                 case ArmMode.Climb:
+                    yarnOn = true;
+                    yarnEnd = arms.Anchor.U();
+                    hand = chest + (yarnEnd - chest).normalized * 0.35f;
+                    break;
+                case ArmMode.YarnProp:
+                    var yp = world != null ? world.GetProp(arms.PropId) : null;
+                    yarnOn = yp != null;
+                    yarnEnd = yp != null ? yp.transform.TransformPoint(arms.Anchor.U()) : chest;
+                    hand = chest + (yarnEnd - chest).normalized * 0.35f;
+                    break;
+                case ArmMode.YarnFly:
+                    yarnOn = true;
+                    yarnEnd = arms.Hand.U();
+                    hand = chest + (yarnEnd - chest).normalized * 0.35f;
+                    break;
                 case ArmMode.Reach:
                     hand = arms.Hand.U();
                     break;
                 default:
-                    hand = fallbackLook;
                     active = false;
                     break;
             }
-            float spread = arms.Mode == ArmMode.HoldProp ? 0.1f : 0.08f;
+            float spread = arms.Mode == ArmMode.HoldProp ? 0.1f : 0.06f;
             Avatar.HandsActive = active;
             Avatar.HandTargetL = hand - right * spread;
             Avatar.HandTargetR = hand + right * spread;
+            Avatar.SetYarn(yarnOn, hand, yarnEnd);
         }
 
         protected void FeedAvatar()

@@ -69,14 +69,22 @@ namespace Gnomes.World
                 // garden lamps light up the yard
                 foreach (var lm in inst.Markers("LIGHT")) AddMarkerLight(inst, lm);
             }
-            var mush = ModelLibrary.Instantiate("mushroomHouse", root, Layers.Default);
-            mush.transform.SetPositionAndRotation(L.Mushroom.U(), Quaternion.Euler(0, 180, 0));
-            foreach (var lm in mush.Markers("LIGHT")) AddMarkerLight(mush, lm);
-            w.MushroomPos = L.Mushroom.U();
-            var rev = mush.Node("ANCHOR_revive");
-            w.RevivePoint = rev ? rev.position : L.Mushroom.U() + Vector3.back * 2f;
+            // the porch: the gang's village is underneath
+            var porch = ModelLibrary.Instantiate("porch", root, Layers.Default);
+            porch.transform.SetPositionAndRotation(L.Porch.U(), Quaternion.identity);
+            var gap = porch.Node("ANCHOR_gap");
+            w.GoHomePoint = gap ? gap.position : L.Porch.U() + new Vector3(-5f, 0, 7f);
+            // yarn basket: fallen gnomes get re-knitted here
+            var basket = ModelLibrary.Instantiate("yarnBasket", root, Layers.Default);
+            basket.transform.SetPositionAndRotation(L.Mushroom.U(), Quaternion.Euler(0, 180, 0));
+            foreach (var lm in basket.Markers("LIGHT")) AddMarkerLight(basket, lm);
+            var rz = basket.Node("ZONE_revive");
+            w.ReviveZone = rz ? rz.GetComponent<BoxCollider>() : null;
+            var rev = basket.Node("ANCHOR_revive");
+            w.RevivePoint = rev ? rev.position : L.Mushroom.U() + Vector3.forward * 2f;
+            // the sardine-tin cart takes loot to the village
             var stash = ModelLibrary.Instantiate("stashBasket", root, Layers.Default);
-            stash.transform.SetPositionAndRotation(new Vector3(L.StashCenter.x, 0, L.StashCenter.z), Quaternion.Euler(0, 200, 0));
+            stash.transform.SetPositionAndRotation(new Vector3(L.StashCenter.x, 0, L.StashCenter.z), Quaternion.Euler(0, 170, 0));
             var sz = stash.Node("ZONE_stash");
             w.StashZone = sz ? sz.GetComponent<BoxCollider>() : null;
 
@@ -93,10 +101,11 @@ namespace Gnomes.World
             w.PlayArea = new Bounds(mid, size);
             w.FloorY = 0;
 
+            Physics.SyncTransforms();
             BakeNavMesh(L);
         }
 
-        static void AddMarkerLight(ModelInstance inst, Transform lm)
+        public static void AddMarkerLight(ModelInstance inst, Transform lm)
         {
             var node = inst.Model.Find(lm.name);
             var light = lm.gameObject.AddComponent<Light>();
@@ -293,6 +302,7 @@ namespace Gnomes.World
         /// <summary>Host: decide where every item of the night spawns.</summary>
         public static List<PropSpawn> PlaceItems(GameWorld w, HouseLayout L, int seed)
         {
+            Physics.SyncTransforms();
             var rng = new Rng(seed * 31 + 7);
             var result = new List<PropSpawn>();
             var placed = new List<(Vector3 pos, float r)>();
@@ -328,7 +338,7 @@ namespace Gnomes.World
                         if (spawn.FloorPos.HasValue && tries == 0) pos = spawn.FloorPos.Value.U();
                         else pos = new Vector3(rng.Range(room.X0 + 1.5f, room.X1 - 1.5f), 0, rng.Range(room.Z0 + 1.5f, room.Z1 - 1.5f));
                         pos.y = half + 0.03f;
-                        ok = !Physics.CheckBox(pos + Vector3.up * 0.5f, new Vector3(radius + 0.1f, 0.45f, radius + 0.1f), 1 << Layers.Default, QueryTriggerInteraction.Ignore) && Free(placed, pos, radius);
+                        ok = !Physics.CheckBox(pos + Vector3.up * 0.5f, new Vector3(radius + 0.1f, 0.45f, radius + 0.1f), Quaternion.identity, 1 << Layers.Default, QueryTriggerInteraction.Ignore) && Free(placed, pos, radius);
                     }
                     if (!ok) continue;
                 }

@@ -128,3 +128,41 @@ namespace Gnomes.Tests
         }
     }
 }
+
+namespace Gnomes.Tests
+{
+    public class ModelCoverageTests
+    {
+        static bool Has(string name) => System.IO.File.Exists(System.IO.Path.Combine(TestPaths.Models, name + ".bytes"));
+
+        [Fact]
+        public void EveryItemAndFurnitureHasAModel()
+        {
+            foreach (var k in Gnomes.Core.ItemDefs.Kinds) Assert.True(Has(k), "missing item model: " + k);
+            var L = Gnomes.Core.Level.HouseLayout.Generate(7);
+            foreach (var f in L.Furniture) Assert.True(Has(f.Model), "missing furniture model: " + f.Model);
+            foreach (var d in L.Garden) Assert.True(Has(d.Model), "missing garden model: " + d.Model);
+            foreach (var m in new[] { "gnome", "oldMan", "cat", "greatSock", "village", "knittingCorner", "sockTunnel", "porch", "yarnBasket", "stashBasket", "roof" })
+                Assert.True(Has(m), "missing model: " + m);
+        }
+
+        [Fact]
+        public void InteractiveFurnitureHasItsMarkers()
+        {
+            Gnomes.Core.Models.ModelData M(string n) => Gnomes.Core.Models.ModelData.Parse(System.IO.File.ReadAllBytes(System.IO.Path.Combine(TestPaths.Models, n + ".bytes")), n);
+            Assert.NotNull(M("jarShelf").Find("MECH_lid0"));
+            Assert.NotNull(M("jarShelf").Find("ANCHOR_jar2"));
+            Assert.NotNull(M("toilet").Find("ZONE_toiletBowl"));
+            Assert.NotNull(M("fridge").Find("ZONE_freezer"));
+            Assert.NotNull(M("fishTank").Find("ZONE_fishTank"));
+            Assert.NotNull(M("plant").Find("ZONE_plantPot"));
+            Assert.NotNull(M("catBed").Find("ZONE_catBed"));
+            Assert.NotNull(M("parrotCage").Find("ZONE_cageTop"));
+            Assert.NotNull(M("stashBasket").Find("ZONE_stash"));
+            Assert.NotNull(M("yarnBasket").Find("ZONE_revive"));
+            Assert.NotNull(M("sockTunnel").Find("ZONE_portal"));
+            Assert.NotNull(M("mousetrap").Find("MECH_snap"));
+            Assert.Equal("jar", M("jarShelf").Find("MECH_lid1").Props["role"]);
+        }
+    }
+}

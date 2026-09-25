@@ -46,12 +46,14 @@ namespace Gnomes.World
 
         public OldMan OldMan;
         public Cat Cat;
-        public Roomba Roomba;
+        public Parrot Parrot;
+        public Ties Ties;
 
-        public Vector3 MushroomPos;
-        public Vector3 RevivePoint;
-        public BoxCollider StashZone;
-        public BoxCollider PortalZone;
+        public Vector3 GoHomePoint; // the gap under the porch
+        public Vector3 RevivePoint; // in front of the yarn basket
+        public BoxCollider ReviveZone; // drop a fallen gnome's hat in here
+        public BoxCollider StashZone; // the sardine-tin cart
+        public BoxCollider PortalZone; // village: the sock tunnel
         public Transform CraftBench, HighGnome;
         public readonly List<Vector3> Spawns = new List<Vector3>();
         public Bounds PlayArea;
@@ -78,6 +80,7 @@ namespace Gnomes.World
             w.GnomeRoot.SetParent(go.transform, false);
             w.FxRoot = new GameObject("Fx").transform;
             w.FxRoot.SetParent(go.transform, false);
+            w.Ties = Ties.Create(w);
             Current = w;
             return w;
         }
@@ -134,15 +137,16 @@ namespace Gnomes.World
             return p;
         }
 
-        /// <summary>Host: spawn a new prop at runtime and tell clients.</summary>
-        public Prop HostSpawnProp(string kind, Vector3 pos, Quaternion rot, Vector3 vel)
+        /// <summary>Host: spawn a new prop at runtime and tell clients. tint = hat colour index + 1 (0 = none).</summary>
+        public Prop HostSpawnProp(string kind, Vector3 pos, Quaternion rot, Vector3 vel, byte tint = 0)
         {
             if (!Authority) return null;
             var id = AllocPropId();
             var p = SpawnProp(id, kind, pos, rot);
             p.SpawnTime = Time.time - 2f; // can break right away
             p.Rb.SetVel(vel);
-            Session?.Broadcast(new EventMsg { Type = EvType.PropSpawned, Id = id, S = kind, Pos = pos.ToCoreV(), Rot = rot.ToCoreQ(), Vel = vel.ToCoreV() });
+            if (tint > 0) p.Model.SetTint(GameSession.HatColor((byte)(tint - 1)));
+            Session?.Broadcast(new EventMsg { Type = EvType.PropSpawned, Id = id, S = kind, P = tint, Pos = pos.ToCoreV(), Rot = rot.ToCoreQ(), Vel = vel.ToCoreV() });
             return p;
         }
 
@@ -152,6 +156,7 @@ namespace Gnomes.World
             if (!Props.TryGetValue(id, out var p)) return;
             p.Removed = true;
             Props.Remove(id);
+            Ties?.OnPropRemoved(id);
             Destroy(p.gameObject);
         }
 
@@ -166,8 +171,8 @@ namespace Gnomes.World
         {
             if (!Authority) return;
             SoundId s = SoundId.Thud;
-            if (p.Def.Yield[(int)Mat.Clonk] > 0) s = SoundId.Clonk;
-            else if (p.Def.Yield[(int)Mat.Glint] > 0) s = SoundId.Clink;
+            if (p.Def.Yield[(int)Mat.Bolts] > 0) s = SoundId.Clonk;
+            else if (p.Def.Yield[(int)Mat.Glitter] > 0) s = SoundId.Clink;
             if (p.Def.Has(ItemFlags.Squeaky)) s = SoundId.Squeak;
             EmitSound(s, point, Mathf.Clamp01(0.25f + loudness));
             Noise(point, 6f + 26f * loudness, NoiseKind.Impact);
@@ -179,6 +184,12 @@ namespace Gnomes.World
             var def = p.Def;
             var pos = p.transform.position;
             HostRemoveProp(p.Id, 3);
+            if (def.HasTag("sleepDust"))
+            {
+                EmitSound(SoundId.Sparkle, pos, 1f);
+                Session?.Host?.OnSleepDust(pos);
+                return;
+            }
             EmitSound(SoundId.Break, pos, 1f);
             Noise(pos, 34f * Mathf.Max(1f, def.Loudness), NoiseKind.Break);
             Session?.Broadcast(new EventMsg { Type = EvType.Sound, P = (byte)SoundId.Break, Pos = pos.ToCoreV(), F = -1 }); // F = -1 -> spawn shards fx
@@ -198,7 +209,7 @@ namespace Gnomes.World
         {
             if (!Authority) return;
             p.Rb.SetVel(Vector3.zero);
-            p.transform.position = MushroomPos + new Vector3(2f, 2f, -2f);
+            p.transform.position = GoHomePoint + new Vector3(2f, 2f, 2f);
         }
 
         // ------------------------------------------------------------------ mechanisms & furniture

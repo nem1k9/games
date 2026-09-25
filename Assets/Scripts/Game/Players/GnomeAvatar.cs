@@ -34,6 +34,13 @@ namespace Gnomes.Players
         public Vector3 HandTargetL, HandTargetR;
         public bool HandsActive; // reaching/holding/climbing
         public bool FirstPerson; // hide head for the local camera
+        public float FootstepVolume = 0.35f;
+        public bool Gliding;
+        float kickUntil;
+        Transform yarn, hook;
+        bool yarnActive;
+        Vector3 yarnFrom, yarnTo;
+        float lastStepPhase;
 
         public static GnomeAvatar Create(Transform parent, Color32 hat)
         {
@@ -44,7 +51,48 @@ namespace Gnomes.Players
             inst.SetTint(hat);
             inst.SetLayerRecursive(Layers.IgnoreRaycast);
             av.Bind();
+            av.BuildYarn(parent);
             return av;
+        }
+
+        void BuildYarn(Transform parent)
+        {
+            // the yarn is a thin stretched cylinder in the owner's hat colour, with a little hook ball
+            var mat = ModelLibrary.TintMaterial(HatColor);
+            var y = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            Destroy(y.GetComponent<Collider>());
+            y.name = "Yarn";
+            y.layer = Layers.IgnoreRaycast;
+            y.GetComponent<MeshRenderer>().sharedMaterial = mat;
+            y.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            yarn = new GameObject("YarnPivot").transform;
+            yarn.SetParent(parent != null ? parent.parent : null, false);
+            y.transform.SetParent(yarn, false);
+            y.transform.localRotation = Quaternion.Euler(90, 0, 0); // cylinder Y axis -> pivot Z axis
+            y.transform.localPosition = new Vector3(0, 0, 0.5f);
+            y.transform.localScale = new Vector3(0.03f, 0.5f, 0.03f);
+            var h = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            Destroy(h.GetComponent<Collider>());
+            h.name = "YarnHook";
+            h.layer = Layers.IgnoreRaycast;
+            h.GetComponent<MeshRenderer>().sharedMaterial = mat;
+            hook = h.transform;
+            hook.SetParent(yarn.parent, false);
+            hook.localScale = Vector3.one * 0.09f;
+            yarn.gameObject.SetActive(false);
+            hook.gameObject.SetActive(false);
+        }
+
+        public void SetYarn(bool active, Vector3 from, Vector3 to)
+        {
+            yarnActive = active;
+            yarnFrom = from;
+            yarnTo = to;
+        }
+
+        public void Kick()
+        {
+            kickUntil = Time.time + 0.28f;
         }
 
         void Bind()
@@ -80,6 +128,8 @@ namespace Gnomes.Players
         {
             if (handL) Destroy(handL.gameObject);
             if (handR) Destroy(handR.gameObject);
+            if (yarn) Destroy(yarn.gameObject);
+            if (hook) Destroy(hook.gameObject);
         }
 
         public void SetVisible(bool v)
@@ -121,8 +171,19 @@ namespace Gnomes.Players
                 legA = k;
             }
             else if (!Grounded) legA = 20f;
+            // footsteps on every stride
+            if (Grounded && speed > 1f && !carried)
+            {
+                float stepIndex = Mathf.Floor(walkPhase / Mathf.PI);
+                if (stepIndex != lastStepPhase)
+                {
+                    lastStepPhase = stepIndex;
+                    Audio.Sfx.I?.Play(Audio.SoundId.Footstep, pos, FootstepVolume * Mathf.Clamp01(speed / 5f));
+                }
+            }
+            float kick = Time.time < kickUntil ? Mathf.Sin((kickUntil - Time.time) / 0.28f * Mathf.PI) * -75f : 0f;
             if (legL) legL.localRotation = legLRest * Quaternion.Euler(legA, 0, 0);
-            if (legR) legR.localRotation = legRRest * Quaternion.Euler(!Grounded && !carried ? -10f : -legA, 0, 0);
+            if (legR) legR.localRotation = legRRest * Quaternion.Euler((!Grounded && !carried ? -10f : -legA) + kick, 0, 0);
 
             // --- body bob, lean and crouch squash ---
             float targetSquash = Crouch ? 0.72f : 1f;
@@ -141,6 +202,7 @@ namespace Gnomes.Players
             if (head) head.localRotation = headRest * Quaternion.Euler(Mathf.Clamp(Pitch * Mathf.Rad2Deg * 0.5f, -25f, 30f), 0, 0);
 
             // --- floppy hat: a damped spring driven by acceleration ---
+            if (hat) hat.localScale = Compat.Damp(hat.localScale, Gliding ? new Vector3(2.2f, 0.55f, 2.2f) : Vector3.one, 12f, dt);
             if (hatMid && hatTip)
             {
                 var accel = (Velocity - smoothedVel);
@@ -154,9 +216,26 @@ namespace Gnomes.Players
                 hatTip.localRotation = hatTipRest * Quaternion.Euler(hatOffset.z * 70f, 0, -hatOffset.x * 70f);
             }
 
-            // --- stretchy arms ---
+            // --- arms ---
             UpdateArm(armL, handL, HandTargetL, -1f);
             UpdateArm(armR, handR, HandTargetR, 1f);
+
+            // --- yarn ---
+            if (yarn)
+            {
+                yarn.gameObject.SetActive(yarnActive);
+                hook.gameObject.SetActive(yarnActive);
+                if (yarnActive)
+                {
+                    var from = handR ? handR.position : yarnFrom;
+                    var d = yarnTo - from;
+                    float len = Mathf.Max(0.01f, d.magnitude);
+                    yarn.position = from;
+                    if (d.sqrMagnitude > 1e-6f) yarn.rotation = Quaternion.LookRotation(d);
+                    yarn.localScale = new Vector3(1, 1, len);
+                    hook.position = yarnTo;
+                }
+            }
         }
 
         void UpdateArm(Transform arm, Transform hand, Vector3 target, float side)

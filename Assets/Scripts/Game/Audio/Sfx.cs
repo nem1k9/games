@@ -8,7 +8,7 @@ namespace Gnomes.Audio
     {
         Footstep, Jump, Land, Grab, Throw, Punch, Clonk, Thud, Clink, Break, Squeak, Flush, Water, TvStatic,
         Click, Door, ArmPop, Honk, Pickup, Bank, TaskDone, Grumble, Shout, Snore, Meow, Hiss, Roomba, Oven,
-        Revive, Death, Chime, Alarm, Coins, Splash, Ding, Rooster, Struggle, Gulp, Sparkle, Slurp,
+        Revive, Death, Chime, Alarm, Coins, Splash, Ding, Rooster, Struggle, Gulp, Sparkle, Slurp, Squawk,
     }
 
     /// <summary>All sounds are synthesised at startup, so the game needs no audio assets.</summary>
@@ -222,6 +222,15 @@ namespace Gnomes.Audio
                 case SoundId.Gulp: return Clip(name, 0.25f, (t, i) => Sine(t, 300 - t * 800) * Env(t, 0.01f, 0.08f) * 0.6f);
                 case SoundId.Sparkle: return Clip(name, 0.5f, (t, i) => Sine(t, 1800 + Sine(t, 40) * 600) * Env(t, 0.005f, 0.15f) * 0.3f);
                 case SoundId.Slurp: return Clip(name, 0.4f, (t, i) => Noise(i) * Sine(t, 30) * Env(t, 0.02f, 0.15f) * 0.5f);
+                case SoundId.Squawk:
+                    // "VO-RY!" - two harsh syllables
+                    return Clip(name, 0.9f, (t, i) =>
+                    {
+                        float syl = t < 0.35f ? t : t - 0.45f;
+                        if (t >= 0.35f && t < 0.45f) return 0f;
+                        float f = t < 0.35f ? 900 + syl * 600 : 1250 - syl * 900;
+                        return (Saw(t, f) * 0.35f + Square(t, f * 1.5f) * 0.15f + Noise(i) * 0.1f) * Env(syl, 0.01f, 0.18f) * 0.8f;
+                    });
                 default: return Clip(name, 0.1f, (t, i) => Noise(i) * Env(t, 0.001f, 0.02f));
             }
         }
