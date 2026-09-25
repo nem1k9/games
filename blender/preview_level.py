@@ -156,7 +156,7 @@ def look_rotation_u(forward, up):
 
 # ---------------------------------------------------------------- house
 
-def build_house(L, rng):
+def build_house(L, rng, awake=None):
     H = L['wallHeight']
 
     for r in L['rooms']:
@@ -206,7 +206,9 @@ def build_house(L, rng):
 
     # characters: grandpa asleep, the cat on its cushion, the gang at the porch
     bed = next((f for f in L['furniture'] if f['id'] == 'bed'), None)
-    if bed:
+    if awake:
+        place('oldMan', awake[0], awake[1])
+    elif bed:
         # OldMan.EnterSleep: anchor + fwd * 3.3 + up * 0.35, LookRotation(up, -fwd)
         fwd = Vector((math.sin(bed['rotY']), 0, math.cos(bed['rotY'])))
         bed_m = trs_u(bed['pos'], (0, bed['rotY'], 0))
@@ -314,7 +316,8 @@ def main():
     if kind == 'house':
         L = json.load(open(args[1]))
         out = args[2]
-        build_house(L, rng)
+        night = view == 'night'
+        build_house(L, rng, awake=((16.8, 0, 26.6), 1.25) if night else None)
         sun = _light('sun', 'SUN', (0, 0, 50), 3.2, color=(1.0, 0.95, 0.85))
         sun.rotation_euler = (math.radians(38), math.radians(12), math.radians(-35))
         views = {
@@ -325,7 +328,29 @@ def main():
             'living': ((4, 8, 38), (22, 1.5, 28), 18, None),
             'kitchen': ((50, 7.5, 16.5), (40, 2, 4), 18, None),
         }
+        views['night'] = ((34.2, 1.25, 28.4), (17, 3.3, 27.4), 17, None)
         eye, tgt, lens, ortho = views[view]
+        if night:
+            # grandpa's night round: ceilings on, moonlight, fireplace embers and his torch
+            setup(res, samples, sky=(0.05, 0.06, 0.12), strength=0.3)
+            H = L['wallHeight']
+            for r in L['rooms']:
+                box('Ceiling_' + r['id'], ((r['x0'] + r['x1']) / 2, H + 0.15, (r['z0'] + r['z1']) / 2), (r['x1'] - r['x0'], 0.3, r['z1'] - r['z0']), 0xf2eee6)
+            sun.data.energy = 0.25
+            sun.data.color = (0.55, 0.65, 1.0)
+            sun.rotation_euler = (math.radians(62), 0, math.radians(160))
+            fire = _light('fire', 'POINT', u2b((10.8, 1.6, 27.0)), 380, color=(1.0, 0.55, 0.2))
+            fire.data.shadow_soft_size = 0.8
+            amb = _light('amb', 'AREA', u2b((24, H - 0.4, 32)), 520, 14, color=(0.4, 0.48, 0.95))
+            torch = _light('torch', 'SPOT', u2b((18.2, 4.4, 27.4)), 9000, color=(1.0, 0.92, 0.72))
+            torch.data.spot_size = math.radians(46)
+            torch.data.spot_blend = 0.35
+            torch.data.shadow_soft_size = 0.15
+            _aim(torch, u2b((27.0, 0, 28.6)))
+            for gp, gy in [((30.2, 0, 29.4), 1.9), ((28.9, 0, 27.6), 1.2), ((31.3, 0, 27.1), 2.3)]:
+                place('gnome', gp, gy)
+            place('remote', (29.3, 0.62, 27.9), 0.3)
+            place('slipper', (27.4, 0.05, 29.6), 1.1)
         if view in ('living', 'kitchen'):
             # indoors: soft ceiling light instead of the sun through the (missing) ceiling
             sun.data.energy = 1.0
