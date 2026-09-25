@@ -148,8 +148,8 @@ namespace Gnomes.Core
 
             // controls help
             ["controls"] = new[] {
-                "WASD — ходить, Shift — бежать (шумно), Ctrl — красться, Пробел — прыжок\nЛКМ — взять/положить, ПКМ — клубок-крюк (с вещью в руках — швырнуть), колесо — длина нитки\nT — привязать нитку, F — пинок, E — использовать/в карман, Q — выложить карманы, G — сонная пыльца, H — свист, V — камера, Tab — проказы",
-                "WASD — move, Shift — run (noisy), Ctrl — sneak, Space — jump\nLMB — pick up/drop, RMB — yarn hook (holding an item: throw), wheel — yarn length\nT — tie the yarn, F — kick, E — use/pocket, Q — empty pockets, G — sleep dust, H — whistle, V — camera, Tab — pranks" },
+                "WASD — ходить, Shift — бежать (шумно), Ctrl — красться, Пробел — прыжок\nЛКМ — взять/положить, ПКМ — клубок-крюк (с вещью в руках — швырнуть), колесо — длина нитки, R — подтянуться\nT — привязать нитку, F — пинок, E — использовать/в карман, Q — выложить карманы, G — сонная пыльца, H — свист, V — камера, Tab — проказы",
+                "WASD — move, Shift — run (noisy), Ctrl — sneak, Space — jump\nLMB — pick up/drop, RMB — yarn hook (holding an item: throw), wheel — yarn length, R — reel in\nT — tie the yarn, F — kick, E — use/pocket, Q — empty pockets, G — sleep dust, H — whistle, V — camera, Tab — pranks" },
         };
 
         public static string T(string key)
