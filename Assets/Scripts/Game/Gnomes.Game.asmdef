@@ -1,0 +1,19 @@
+{
+    "name": "Gnomes.Game",
+    "rootNamespace": "Gnomes",
+    "references": [
+        "Gnomes.Core",
+        "Gnomes.Net"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "LiteNetLib.dll"
+    ],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

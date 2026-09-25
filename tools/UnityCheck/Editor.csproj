@@ -6,8 +6,8 @@
     <DefineConstants>$(UnityDefines);UNITY_EDITOR</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="UnityEngine.Modules" Version="2021.3.33" PrivateAssets="all" ExcludeAssets="runtime" />
-    <PackageReference Include="Unity3D.SDK" Version="2021.1.14.1" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Include="UnityEngine.Modules" Version="2021.3.33" PrivateAssets="all" IncludeAssets="compile" />
+    <PackageReference Include="Unity3D.SDK" Version="2021.1.14.1" PrivateAssets="all" IncludeAssets="compile" />
     <Compile Include="$(RepoRoot)Assets/Editor/**/*.cs" />
     <ProjectReference Include="Game.csproj" />
     <ProjectReference Include="Core.csproj" />

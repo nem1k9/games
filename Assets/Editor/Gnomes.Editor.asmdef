@@ -1,0 +1,19 @@
+{
+    "name": "Gnomes.Editor",
+    "rootNamespace": "Gnomes.EditorTools",
+    "references": [
+        "Gnomes.Core",
+        "Gnomes.Game"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

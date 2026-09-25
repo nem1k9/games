@@ -6,7 +6,7 @@
     <DefineConstants>$(UnityDefines)</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="UnityEngine.Modules" Version="2021.3.33" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Include="UnityEngine.Modules" Version="2021.3.33" PrivateAssets="all" IncludeAssets="compile" />
     <Compile Include="$(RepoRoot)Assets/Scripts/Game/**/*.cs" />
     <ProjectReference Include="Core.csproj" />
     <ProjectReference Include="Net.csproj" />
