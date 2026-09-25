@@ -127,14 +127,14 @@ namespace SockGang.Rendering
             {
                 case MeshKind.Emissive: return emitMat;
                 case MeshKind.Glass: return glassMat;
-                case MeshKind.Tint: return TintMaterial(Conv.C(rgb));
-                default: return litMat;
+                case MeshKind.Tint: return Surfaces.Tinted(MeshKind.Tint, Conv.C(rgb));
+                default: return Surfaces.For(kind, paletteTex);
             }
         }
 
         // ------------------------------------------------------------------ meshes
 
-        /// <summary>Godot mesh of one node (one surface per GMDL submesh), Z mirrored and winding flipped.</summary>
+        /// <summary>Godot mesh of one node (one surface per GMDL submesh), Z mirrored.</summary>
         public static ArrayMesh BuildMesh(ModelData model, int nodeIndex)
         {
             var key = (model.Name, nodeIndex);
@@ -147,24 +147,23 @@ namespace SockGang.Rendering
                 var verts = new Vector3[n];
                 var norms = new Vector3[n];
                 var uvs = new Vector2[n];
+                var cols = s.Colors != null ? new Color[n] : null;
                 for (int i = 0; i < n; i++)
                 {
                     verts[i] = new Vector3(s.Positions[i * 3], s.Positions[i * 3 + 1], -s.Positions[i * 3 + 2]);
                     norms[i] = new Vector3(s.Normals[i * 3], s.Normals[i * 3 + 1], -s.Normals[i * 3 + 2]);
                     uvs[i] = new Vector2(s.Uvs[i * 2], 1f - s.Uvs[i * 2 + 1]);
+                    if (cols != null) cols[i] = new Color(s.Colors[i * 4] / 255f, s.Colors[i * 4 + 1] / 255f, s.Colors[i * 4 + 2] / 255f, s.Colors[i * 4 + 3] / 255f);
                 }
-                var idx = new int[s.Indices.Length];
-                for (int t = 0; t + 2 < idx.Length; t += 3)
-                {
-                    idx[t] = s.Indices[t];
-                    idx[t + 1] = s.Indices[t + 2];
-                    idx[t + 2] = s.Indices[t + 1];
-                }
+                // Mirroring z together with the change of handedness keeps the on-screen winding, so the
+                // triangles keep their order: GMDL front faces are clockwise like Godot's.
+                var idx = (int[])s.Indices.Clone();
                 var arrays = new Godot.Collections.Array();
                 arrays.Resize((int)Mesh.ArrayType.Max);
                 arrays[(int)Mesh.ArrayType.Vertex] = verts;
                 arrays[(int)Mesh.ArrayType.Normal] = norms;
                 arrays[(int)Mesh.ArrayType.TexUV] = uvs;
+                if (cols != null) arrays[(int)Mesh.ArrayType.Color] = cols;
                 arrays[(int)Mesh.ArrayType.Index] = idx;
                 mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
                 mesh.SurfaceSetMaterial(mesh.GetSurfaceCount() - 1, MaterialFor(s.Kind, s.Rgb));

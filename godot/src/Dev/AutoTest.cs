@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Gnomes.Core;
 using Gnomes.Core.Protocol;
 using Godot;
+using SockGang.Rendering;
 using SockGang.App;
 using SockGang.NPC;
 using SockGang.Players;
@@ -38,6 +39,37 @@ namespace SockGang.Dev
         }
 
         void Log(string s) => GD.Print("[autotest] " + s);
+
+        /// <summary>
+        /// Godot draws clockwise triangles as front faces, so on a closed model cross(c - a, b - a) must agree
+        /// with the vertex normals. A wrong winding renders every model inside out (see-through parts).
+        /// </summary>
+        static bool OutwardFacing(string model)
+        {
+            var m = ModelLibrary.Get(model);
+            if (m == null) return false;
+            int good = 0, bad = 0;
+            for (int ni = 0; ni < m.Nodes.Length; ni++)
+            {
+                if (m.Nodes[ni].Meshes.Length == 0) continue;
+                var mesh = ModelLibrary.BuildMesh(m, ni);
+                for (int si = 0; si < mesh.GetSurfaceCount(); si++)
+                {
+                    var arr = mesh.SurfaceGetArrays(si);
+                    var v = (Vector3[])arr[(int)Mesh.ArrayType.Vertex];
+                    var n = (Vector3[])arr[(int)Mesh.ArrayType.Normal];
+                    var idx = (int[])arr[(int)Mesh.ArrayType.Index];
+                    for (int t = 0; t + 2 < idx.Length; t += 3)
+                    {
+                        var c = (v[idx[t + 2]] - v[idx[t]]).Cross(v[idx[t + 1]] - v[idx[t]]);
+                        if (c.LengthSquared() < 1e-12f) continue;
+                        if (c.Dot(n[idx[t]] + n[idx[t + 1]] + n[idx[t + 2]]) > 0) good++;
+                        else bad++;
+                    }
+                }
+            }
+            return good > 0 && bad == 0;
+        }
 
         void Check(bool ok, string what)
         {
@@ -117,6 +149,7 @@ namespace SockGang.Dev
             await Wait(1.5f);
             await Shot("menu");
             Check(W != null && W.Kind == LevelKind.Hub, "menu backdrop village built");
+            Check(OutwardFacing("yarn") && OutwardFacing("apple") && OutwardFacing("greatSock"), "model triangles face outwards (Godot front faces are clockwise)");
             if (host)
             {
                 if (Args.TryGetValue("port", out var p)) App.Settings.Port = int.Parse(p);

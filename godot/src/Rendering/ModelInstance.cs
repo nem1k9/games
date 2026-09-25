@@ -41,7 +41,7 @@ namespace SockGang.Rendering
         /// <summary>Recolour every tint submesh (hat colours).</summary>
         public void SetTint(Color c)
         {
-            var mat = ModelLibrary.TintMaterial(c);
+            var mat = Surfaces.Tinted(MeshKind.Tint, c);
             foreach (var (mi, data) in meshes)
                 for (int i = 0; i < data.Meshes.Length; i++)
                     if (data.Meshes[i].Kind == MeshKind.Tint) mi.SetSurfaceOverrideMaterial(i, mat);

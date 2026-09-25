@@ -38,6 +38,7 @@ namespace Gnomes.Tests
                     Assert.Equal(0, s.Indices.Length % 3);
                     Assert.All(s.Indices, i => Assert.InRange(i, 0, s.VertexCount - 1));
                     Assert.Equal(s.VertexCount * 2, s.Uvs.Length);
+                    Assert.True(s.Colors != null && s.Colors.Length == s.VertexCount * 4, $"{name}/{n.Name}: missing baked occlusion colours");
                     // Winding must agree with the stored face normal (Unity: front = cross(e1, e2) direction).
                     int bad = 0, tris = s.Indices.Length / 3;
                     for (int t = 0; t < tris; t++)
@@ -105,7 +106,7 @@ namespace Gnomes.Tests
         public void PaletteCoversEveryColourUsedByModels()
         {
             var pal = PaletteData.Parse(File.ReadAllBytes(Path.Combine(TestPaths.Models, "palette.bytes")));
-            Assert.InRange(pal.Colors.Length, 1, 256);
+            Assert.InRange(pal.Colors.Length, 1, PaletteData.Cells * PaletteData.Cells);
             foreach (var f in Directory.GetFiles(TestPaths.Models, "*.bytes"))
             {
                 if (f.EndsWith("palette.bytes")) continue;

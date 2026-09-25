@@ -39,12 +39,21 @@ namespace SockGang.Dev
             if (Args.TryGetValue("shot-model", out var name))
             {
                 var inst = ModelLibrary.Instantiate(name, this);
+                if (Args.TryGetValue("cull", out var cullMode))
+                {
+                    var dbg = new StandardMaterial3D { AlbedoTexture = ModelLibrary.PaletteTexture, TextureFilter = BaseMaterial3D.TextureFilterEnum.Nearest, ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
+                        CullMode = cullMode == "front" ? BaseMaterial3D.CullModeEnum.Front : cullMode == "none" ? BaseMaterial3D.CullModeEnum.Disabled : BaseMaterial3D.CullModeEnum.Back };
+                    foreach (var (mi, _) in inst.Meshes) mi.MaterialOverride = dbg;
+                }
                 var m = inst.Model;
                 m.Bounds(out var mn, out var mx);
                 var c = (mn.G() + mx.G()) * 0.5f;
                 float size = (mx.G() - mn.G()).Length();
                 // look at the model's front (model front = -Z in Godot) from the front-left
-                var eye = c + new Vector3(-0.6f, 0.35f, -1f).Normalized() * size * 1.6f;
+                float yaw = Args.TryGetValue("yaw", out var ys) ? float.Parse(ys, System.Globalization.CultureInfo.InvariantCulture) : 31f;
+                float pitch = Args.TryGetValue("pitch", out var ps) ? float.Parse(ps, System.Globalization.CultureInfo.InvariantCulture) : 17f;
+                var dir = new Vector3(-Mathf.Sin(Mathf.DegToRad(yaw)) * Mathf.Cos(Mathf.DegToRad(pitch)), Mathf.Sin(Mathf.DegToRad(pitch)), -Mathf.Cos(Mathf.DegToRad(yaw)) * Mathf.Cos(Mathf.DegToRad(pitch)));
+                var eye = c + dir * size * 1.6f;
                 cam.LookAtFromPosition(eye, c, Vector3.Up);
                 var ground = new MeshInstance3D { Mesh = new PlaneMesh { Size = new Vector2(size * 8, size * 8) }, Position = new Vector3(c.X, mn.y, c.Z) };
                 ground.MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(0.75f, 0.68f, 0.55f) };

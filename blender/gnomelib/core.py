@@ -15,6 +15,7 @@ import zlib
 import bpy  # must be imported before bmesh
 import bmesh
 from mathutils import Euler, Matrix, Vector
+from mathutils.bvhtree import BVHTree
 
 HS = 4.0  # real metres -> world units (a gnome is 1 unit tall)
 
@@ -49,7 +50,7 @@ def trs_u(pos=(0, 0, 0), rot=(0, 0, 0), scale=(1, 1, 1)) -> Matrix:
 # ---------------------------------------------------------------- palette
 
 class Palette:
-    """Global colour palette shared by every model (max 256 entries)."""
+    """Global colour palette shared by every model (max 1024 entries: a 32x32 texture)."""
 
     def __init__(self):
         self.colors = []
@@ -60,7 +61,7 @@ class Palette:
     def index(self, c: int) -> int:
         hx = '%06x' % (c & 0xFFFFFF)
         if hx not in self.colors:
-            if len(self.colors) >= 256:
+            if len(self.colors) >= 1024:
                 # snap to the nearest existing colour
                 r, g, b = (c >> 16) & 255, (c >> 8) & 255, c & 255
                 best, bd = 0, 1e9
@@ -85,6 +86,24 @@ MAT_OPAQUE = 'C'  # palette, lit
 MAT_EMIT = 'E'  # palette, emissive/unlit glow
 MAT_GLASS = 'G'  # palette, transparent
 MAT_TINT = 'T'  # recoloured at runtime (gnome hats, player colours)
+# surface kinds: palette colour + a procedural detail texture chosen by the runtime
+MAT_KNIT = 'K'  # knitted wool (socks, hats, scarves, yarn)
+MAT_FABRIC = 'F'  # woven cloth (clothes, pyjamas, sofas, towels)
+MAT_FUR = 'U'  # fur and fluff (cat, bunny slippers)
+MAT_SKIN = 'S'  # skin (faces, hands)
+MAT_HAIR = 'H'  # hair and beards
+MAT_WOOD = 'W'  # wood grain
+MAT_METAL = 'M'  # brushed metal (shiny)
+MAT_GLOSSY = 'N'  # glazed ceramic, plastic, paint (smooth and shiny)
+MAT_LEATHER = 'L'  # leather (boots, belts)
+MAT_STONE = 'R'  # stone, earth, rough plaster
+
+# well-known colours get their surface automatically (unless a primitive asks for something else)
+AUTO_SURFACE = {
+    0xc89560: MAT_WOOD, 0x9a6236: MAT_WOOD, 0x6a3f22: MAT_WOOD, 0x8c3b28: MAT_WOOD, 0x8a6a4a: MAT_WOOD, 0x6b4a2e: MAT_WOOD,
+    0xb9c0c8: MAT_METAL, 0x8e969f: MAT_METAL, 0x3d4148: MAT_METAL, 0xe8b83a: MAT_METAL, 0xc6a14a: MAT_METAL,
+    0x8d8a84: MAT_STONE, 0x74716c: MAT_STONE, 0x7a5a3a: MAT_STONE, 0x6e5238: MAT_STONE,
+}
 
 
 def material(kind: str, color: int):
@@ -119,9 +138,15 @@ class Node:
     Positions/rotations are Unity-space, relative to the parent node.
     """
 
-    def __init__(self, name, parent=None, pos=(0, 0, 0), rot=(0, 0, 0), seed=None, k=None):
+    def __init__(self, name, parent=None, pos=(0, 0, 0), rot=(0, 0, 0), seed=None, k=None, surface=None):
         self.name = name
         self.parent = parent
+        # default surface for plain primitives of this node (inherited by children)
+        self.surface = surface if surface is not None else (parent.surface if parent is not None else None)
+        self.fused = []  # [(bmesh, params)] groups melted into one smooth surface at realize()
+        # size multiplier of the surface detail texture (knit stitches, wood grain...) for this node
+        self.detail = parent.detail if parent is not None else 1.0
+        self._fuse_params = None
         # unit scale: furniture is authored in metres (k = HS), characters in world units (k = 1)
         self.k = k if k is not None else (parent.k if parent is not None else 1.0)
         self.pos = tuple(v * self.k for v in pos)
@@ -151,8 +176,20 @@ class Node:
             v.co.y += self.rng.uniform(-amount, amount)
             v.co.z += self.rng.uniform(-amount, amount)
 
+    def resolve_kind(self, kind, color):
+        """Plain primitives take the colour's well-known surface, else the node's default surface."""
+        if kind != MAT_OPAQUE:
+            return kind
+        c = color & 0xFFFFFF
+        if c in AUTO_SURFACE:
+            return AUTO_SURFACE[c]
+        return self.surface or MAT_OPAQUE
+
     def _commit(self, tb, kind, color, smooth=False, wonk=0.0, fix_normals=False):
         """Colour every face of the temporary bmesh and merge it into this node."""
+        kind = self.resolve_kind(kind, color)
+        if self._fuse_params is not None:
+            smooth = True
         if wonk:
             self._wonk(tb.verts, wonk)
         if fix_normals:
@@ -288,6 +325,248 @@ class Node:
             bmesh.ops.bevel(tb, geom=list(tb.edges), offset=bevel, segments=1, affect='EDGES', profile=0.5, clamp_overlap=True)
         return self._commit(tb, kind, color, fix_normals=True)
 
+    # -- organic modelling --
+    def fuse(self, voxel=0.012, smooth=0.5, iterations=4, decimate=1.0, paint=None):
+        """Context manager: primitives added inside melt into ONE smooth surface at realize()
+        (voxel remesh = union, then smoothing so the seams blend). Colours are transferred from
+        the nearest source primitive; paint(p_unity, n_unity) -> (kind, colour) or None overrides them."""
+        node = self
+
+        class _Fuse:
+            def __enter__(self_):
+                node._saved_bm = node.bm
+                node.bm = bmesh.new()
+                node._fuse_params = dict(voxel=voxel * node.k, smooth=smooth, iterations=iterations, decimate=decimate, paint=paint)
+                return node
+
+            def __exit__(self_, *exc):
+                node.fused.append((node.bm, node._fuse_params))
+                node.bm = node._saved_bm
+                node._fuse_params = None
+                return False
+
+        return _Fuse()
+
+    def tube(self, points, radii, color=0xffffff, kind=MAT_OPAQUE, subdiv=2, smooth=True):
+        """Smooth organic tube through points (Unity-local), radius per point (skin modifier)."""
+        k = self.k
+        pts = [Vector(p) * k for p in points]
+        me = bpy.data.meshes.new('__tube__')
+        me.from_pydata([tuple(M_U2B.to_3x3() @ p) for p in pts], [(i, i + 1) for i in range(len(pts) - 1)], [])
+        obj = bpy.data.objects.new('__tube__', me)
+        bpy.context.scene.collection.objects.link(obj)
+        sk = obj.modifiers.new('skin', 'SKIN')
+        sk.branch_smoothness = 1.0
+        sk.use_smooth_shade = smooth
+        for i, r in enumerate(radii):
+            sv = me.skin_vertices[0].data[i]
+            rr = r if isinstance(r, (tuple, list)) else (r, r)
+            sv.radius = (rr[0] * k, rr[1] * k)
+            sv.use_root = i == 0
+        if subdiv:
+            ss = obj.modifiers.new('sub', 'SUBSURF')
+            ss.levels = subdiv
+            ss.render_levels = subdiv
+        dg = bpy.context.evaluated_depsgraph_get()
+        out = bpy.data.meshes.new_from_object(obj.evaluated_get(dg))
+        bpy.data.objects.remove(obj, do_unlink=True)
+        bpy.data.meshes.remove(me)
+        tb = bmesh.new()
+        tb.from_mesh(out)
+        bpy.data.meshes.remove(out)
+        return self._commit(tb, kind, color, smooth=smooth, fix_normals=True)
+
+    def sweep(self, points, radii, color=0xffffff, kind=MAT_OPAQUE, seg=16, steps=6, start='dome', end='dome',
+              paint=None, ribs=None, squash=None, rim=None, pos=(0, 0, 0), rot=(0, 0, 0), wonk=0.0):
+        """One smooth tube along a Catmull-Rom curve through points (Unity-local, node units).
+
+        radii: one per point (interpolated). start/end: 'dome' (rounded), 'flat' or 'open'.
+        paint(t, a) -> colour or (kind, colour): t = 0..1 along the tube, a = angle around it (0 = up/front).
+        ribs(t) -> relative radius bump amplitude (ribbed knitting), squash(t) -> (sx, sy) cross-section scale.
+        rim = (thickness, depth, colour): the 'open' end gets a lip and an inside of that colour.
+        """
+        k = self.k
+        P = [Vector(p) * k for p in points]
+        R = [r * k for r in radii]
+        n = len(P)
+
+        def cr(a, b, c, d, t):
+            t2, t3 = t * t, t * t * t
+            return 0.5 * ((2 * b) + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3)
+
+        pts, rads = [], []
+        for i in range(n - 1):
+            a, b, c, d = P[max(i - 1, 0)], P[i], P[i + 1], P[min(i + 2, n - 1)]
+            ra, rb, rc, rd = R[max(i - 1, 0)], R[i], R[i + 1], R[min(i + 2, n - 1)]
+            for j in range(steps):
+                t = j / steps
+                pts.append(cr(a, b, c, d, t))
+                rads.append(max(cr(ra, rb, rc, rd, t), 1e-4))
+        pts.append(P[-1])
+        rads.append(R[-1])
+        # arc length parameter
+        L = [0.0]
+        for i in range(1, len(pts)):
+            L.append(L[-1] + (pts[i] - pts[i - 1]).length)
+        total = L[-1] or 1.0
+        # tangents + parallel-transported frames
+        T = []
+        for i in range(len(pts)):
+            d = pts[min(i + 1, len(pts) - 1)] - pts[max(i - 1, 0)]
+            T.append(d.normalized() if d.length > 1e-9 else Vector((0, 1, 0)))
+        ref = Vector((0, 0, 1)) if abs(T[0].z) < 0.9 else Vector((0, 1, 0))
+        N = [(ref - T[0] * ref.dot(T[0])).normalized()]
+        for i in range(1, len(pts)):
+            v = N[-1] - T[i] * N[-1].dot(T[i])
+            N.append(v.normalized() if v.length > 1e-9 else N[-1])
+        tb = bmesh.new()
+        mats = {}
+
+        def mi_for(t, a):
+            c = paint(t, a) if paint else None
+            if c is None:
+                kc = (kind, color)
+            elif isinstance(c, tuple):
+                kc = c
+            else:
+                kc = (kind, c)
+            key = (self.resolve_kind(*kc), kc[1])
+            if key not in mats:
+                mats[key] = self._mat_index(*key)
+            return mats[key]
+
+        rings = []
+        for i, c in enumerate(pts):
+            t = L[i] / total
+            B = T[i].cross(N[i])
+            ring = []
+            for j in range(seg):
+                a = 2 * math.pi * j / seg
+                r = rads[i] * (1 + (ribs(t) * math.cos(a * seg / 2) if ribs else 0))
+                sx, sy = squash(t) if squash else (1, 1)
+                ring.append(tb.verts.new(c + (N[i] * math.cos(a) * sx + B * math.sin(a) * sy) * r))
+            rings.append((ring, t))
+        faces = []
+        for i in range(len(rings) - 1):
+            r0, t0 = rings[i]
+            r1, _ = rings[i + 1]
+            for j in range(seg):
+                f = tb.faces.new((r0[j], r0[(j + 1) % seg], r1[(j + 1) % seg], r1[j]))
+                f.material_index = mi_for(t0, 2 * math.pi * (j + 0.5) / seg)
+                faces.append(f)
+
+        def cap(idx, sign, style, t):
+            ring, _ = rings[idx]
+            c, tn, r = pts[idx], T[idx] * sign, rads[idx]
+            if style == 'flat':
+                f = tb.faces.new(ring)
+                f.material_index = mi_for(t, 0)
+                return
+            if style == 'open':
+                if rim is None:
+                    return
+                th, depth, col = rim
+                th, depth = th * k, depth * k
+                mcol = self._mat_index(self.resolve_kind(kind, col), col)
+                B = T[idx].cross(N[idx])
+                inner = []
+                for j in range(seg):
+                    a = 2 * math.pi * j / seg
+                    inner.append(tb.verts.new(c + (N[idx] * math.cos(a) + B * math.sin(a)) * max(r - th, r * 0.3)))
+                bottom = [tb.verts.new(v.co - tn * depth) for v in inner]
+                for j in range(seg):
+                    f = tb.faces.new((ring[j], ring[(j + 1) % seg], inner[(j + 1) % seg], inner[j]))
+                    f.material_index = mi_for(t, 0)
+                    f2 = tb.faces.new((inner[j], inner[(j + 1) % seg], bottom[(j + 1) % seg], bottom[j]))
+                    f2.material_index = mcol
+                fb = tb.faces.new(bottom)
+                fb.material_index = mcol
+                return
+            # dome: shrink rings along the tangent like a quarter circle
+            prev = ring
+            B = T[idx].cross(N[idx])
+            for q in range(1, 4):
+                ang = q / 4 * math.pi / 2
+                rr, off = r * math.cos(ang), r * math.sin(ang) * 0.9
+                cur = []
+                for j in range(seg):
+                    v0 = prev[j].co - c - tn * tn.dot(prev[j].co - c)
+                    dirv = v0.normalized() if v0.length > 1e-9 else N[idx]
+                    cur.append(tb.verts.new(c + tn * off + dirv * rr))
+                for j in range(seg):
+                    f = tb.faces.new((prev[j], prev[(j + 1) % seg], cur[(j + 1) % seg], cur[j]))
+                    f.material_index = mi_for(t, 2 * math.pi * (j + 0.5) / seg)
+                prev = cur
+            tip = tb.verts.new(c + tn * r * 0.9)
+            for j in range(seg):
+                f = tb.faces.new((prev[j], prev[(j + 1) % seg], tip))
+                f.material_index = mi_for(t, 2 * math.pi * (j + 0.5) / seg)
+
+        cap(0, -1, start, 0.0)
+        cap(len(rings) - 1, 1, end, 1.0)
+        bmesh.ops.transform(tb, matrix=u2b_fix(trs_u(tuple(v * k for v in pos), rot)), verts=list(tb.verts))
+        bmesh.ops.recalc_face_normals(tb, faces=list(tb.faces))
+        if wonk:
+            self._wonk(tb.verts, wonk * k)
+        for f in tb.faces:
+            f.smooth = True
+        scratch = bpy.data.meshes.get('__scratch__') or bpy.data.meshes.new('__scratch__')
+        tb.to_mesh(scratch)
+        tb.free()
+        self.bm.from_mesh(scratch)
+        return self
+
+    def blob(self, r, pos=(0, 0, 0), color=0xffffff, scale=(1, 1, 1), rot=(0, 0, 0), kind=MAT_OPAQUE, detail=3, wonk=0.0):
+        """Smooth round shape (subdivided icosphere) for organic parts."""
+        return self.sphere(r, pos, color, scale=scale, rot=rot, kind=kind, ico=detail, smooth=True, wonk=wonk)
+
+    def _melt(self, fbm, params):
+        """Voxel-remesh a group of overlapping primitives into one smooth, recoloured surface."""
+        src = bpy.data.meshes.new('__fuse_src__')
+        fbm.to_mesh(src)
+        for mn in self.mats:
+            src.materials.append(bpy.data.materials[mn])
+        obj = bpy.data.objects.new('__fuse__', src)
+        bpy.context.scene.collection.objects.link(obj)
+        rm = obj.modifiers.new('remesh', 'REMESH')
+        rm.mode = 'VOXEL'
+        rm.voxel_size = params['voxel']
+        rm.adaptivity = 0.0
+        rm.use_smooth_shade = True
+        if params['smooth'] > 0:
+            sm = obj.modifiers.new('smooth', 'SMOOTH')
+            sm.factor = params['smooth']
+            sm.iterations = params['iterations']
+        if params['decimate'] < 1.0:
+            dc = obj.modifiers.new('dec', 'DECIMATE')
+            dc.ratio = params['decimate']
+        dg = bpy.context.evaluated_depsgraph_get()
+        out = bpy.data.meshes.new_from_object(obj.evaluated_get(dg))
+        bpy.data.objects.remove(obj, do_unlink=True)
+        # colour transfer: each new face takes the material of the nearest source face
+        fbm.faces.ensure_lookup_table()
+        tree = BVHTree.FromBMesh(fbm)
+        paint = params['paint']
+        m3 = M_B2U.to_3x3()
+        ob = bmesh.new()
+        ob.from_mesh(out)
+        bpy.data.meshes.remove(out)
+        bpy.data.meshes.remove(src)
+        for f in ob.faces:
+            c = f.calc_center_median()
+            hit = tree.find_nearest(c)
+            mi = fbm.faces[hit[2]].material_index if hit[2] is not None else 0
+            if paint is not None:
+                mname = self.mats[mi]
+                res = paint(tuple(m3 @ c / self.k), tuple((m3 @ f.normal).normalized()), mname)
+                if res is not None:
+                    kind, color = res
+                    mi = self._mat_index(self.resolve_kind(kind, color), color)
+            f.material_index = mi
+            f.smooth = True
+        fbm.free()
+        return ob
+
     # -- markers (exported as special child nodes) --
     def marker(self, prefix, name, pos=(0, 0, 0), rot=(0, 0, 0), size=(1, 1, 1), scale_size=True):
         n = Node(f'{prefix}_{name}', self, pos, rot)
@@ -313,6 +592,13 @@ class Node:
     # -- build blender objects --
     def realize(self, collection=None):
         coll = collection or bpy.context.scene.collection
+        for fbm, params in self.fused:
+            ob = self._melt(fbm, params)
+            scratch = bpy.data.meshes.get('__scratch__') or bpy.data.meshes.new('__scratch__')
+            ob.to_mesh(scratch)
+            ob.free()
+            self.bm.from_mesh(scratch)
+        self.fused = []
         if len(self.bm.faces):
             me = bpy.data.meshes.new(self.name)
             self.bm.normal_update()
@@ -334,6 +620,7 @@ class Node:
             obj.hide_render = True
         for k, v in self.props.items():
             obj[k] = v
+        obj['_detail'] = float(self.detail)
         self.obj = obj
         for c in self.children:
             c.realize(coll)

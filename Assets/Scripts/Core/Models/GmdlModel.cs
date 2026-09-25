@@ -12,6 +12,17 @@ namespace Gnomes.Core.Models
         Emissive = (byte)'E',
         Glass = (byte)'G',
         Tint = (byte)'T',
+        // surfaces: palette colour + a procedural detail texture picked by the renderer
+        Knit = (byte)'K',
+        Fabric = (byte)'F',
+        Fur = (byte)'U',
+        Skin = (byte)'S',
+        Hair = (byte)'H',
+        Wood = (byte)'W',
+        Metal = (byte)'M',
+        Glossy = (byte)'N',
+        Leather = (byte)'L',
+        Stone = (byte)'R',
     }
 
     public sealed class SubMeshData
@@ -21,6 +32,8 @@ namespace Gnomes.Core.Models
         public float[] Positions; // xyz * n
         public float[] Normals; // xyz * n
         public float[] Uvs; // uv * n
+        /// <summary>RGBA8 per vertex (version 2+; R = baked ambient occlusion) or null.</summary>
+        public byte[] Colors;
         public int[] Indices;
         public int VertexCount => Positions.Length / 3;
     }
@@ -54,7 +67,8 @@ namespace Gnomes.Core.Models
     /// <summary>Parsed GMDL model (see blender/gnomelib/export_gmdl.py).</summary>
     public sealed class ModelData
     {
-        public const int SupportedVersion = 1;
+        public const int SupportedVersion = 2;
+        public const int OldestVersion = 1;
         public string Name;
         public NodeData[] Nodes;
 
@@ -89,7 +103,7 @@ namespace Gnomes.Core.Models
                 var magic = Encoding.ASCII.GetString(r.ReadBytes(4));
                 if (magic != "GMDL") throw new InvalidDataException("Not a GMDL file: " + name);
                 int ver = r.ReadInt32();
-                if (ver != SupportedVersion) throw new InvalidDataException($"Unsupported GMDL version {ver} in {name}");
+                if (ver < OldestVersion || ver > SupportedVersion) throw new InvalidDataException($"Unsupported GMDL version {ver} in {name}");
                 int count = r.ReadInt32();
                 if (count <= 0 || count > 100000) throw new InvalidDataException("Bad node count");
                 var nodes = new NodeData[count];
@@ -113,6 +127,7 @@ namespace Gnomes.Core.Models
                         m.Positions = ReadFloats(r, vc * 3);
                         m.Normals = ReadFloats(r, vc * 3);
                         m.Uvs = ReadFloats(r, vc * 2);
+                        if (ver >= 2) m.Colors = r.ReadBytes(vc * 4);
                         int ic = r.ReadInt32();
                         m.Indices = new int[ic];
                         for (int k = 0; k < ic; k++) m.Indices[k] = r.ReadInt32();
@@ -188,7 +203,7 @@ namespace Gnomes.Core.Models
     /// <summary>Global colour palette used by all models (16x16 cells).</summary>
     public sealed class PaletteData
     {
-        public const int Cells = 16;
+        public const int Cells = 32;
         public int[] Colors;
 
         public static PaletteData Parse(byte[] data)

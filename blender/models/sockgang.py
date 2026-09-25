@@ -4,7 +4,8 @@ Authored in METRES (k = HS) unless noted."""
 import math
 import random
 
-from gnomelib.core import HS, MAT_EMIT, MAT_GLASS, MAT_TINT, Node
+from gnomelib.core import (HS, MAT_EMIT, MAT_FABRIC, MAT_GLASS, MAT_GLOSSY, MAT_HAIR, MAT_KNIT, MAT_METAL, MAT_TINT,
+                           Node)
 
 R90 = math.pi / 2
 WOOD_L = 0xc89560
@@ -45,54 +46,85 @@ def mech(n, mid, role, kind, pivot, axis='y', open_=0.0, handle=(0, 0, 0)):
 # ------------------------------------------------------------------ the Great Sock
 
 def great_sock():
-    """The Great Sock: ancient, wise, slightly smelly. Gives out the nightly list of pranks."""
+    """The Great Sock: ancient, wise, slightly smelly. Gives out the nightly list of pranks.
+
+    One knitted tube (stripes, ribbed cuff, contrasting heel and toe) standing like a boot on a
+    tuna-can stage. The 'body' node sways (GreatSockIdle); the can stays put."""
     n = mk('greatSock')
-    stripes = [0xd8342c, 0xf3ead6, 0x2f6fd6, 0xf3ead6, 0xe2b21e, 0xf3ead6, 0xd8342c]
-    # foot resting on the ground (it stands like a boot), toe points forward
-    n.sphere(0.2, (0, 0.13, 0.08), 0xd8342c, scale=(1.0, 0.65, 1.45), seg=10, rings=7, wonk=0.006)
-    n.sphere(0.13, (0, 0.11, 0.34), 0xf3ead6, scale=(1.05, 0.75, 0.8), seg=9, rings=6)  # toe
-    n.sphere(0.13, (0, 0.14, -0.14), 0xf3ead6, scale=(1.1, 0.9, 0.8), seg=9, rings=6)  # heel
-    # the tall tube, striped, slightly wobbly
-    y = 0.2
-    for i, c in enumerate(stripes):
-        h = 0.1
-        n.cyl(0.19 - i * 0.004, h + 0.004, (0, y + h / 2, -0.06 - i * 0.008), c, seg=12, wonk=0.004)
-        y += h
-    # ribbed cuff
-    for k in range(4):
-        n.torus(0.175, 0.018, (0, y + 0.02 + k * 0.03, -0.12), 0xf6f0e2, seg=14, tseg=4)
-    n.cyl(0.16, 0.02, (0, y + 0.12, -0.12), 0x5a3a2a, seg=12)  # dark opening at the top
-    # button eyes (mismatched!)
-    for x, col, r in ((-0.075, 0x2f6fd6, 0.052), (0.08, 0xd8342c, 0.042)):
-        n.cyl(r, 0.025, (x, 0.72, 0.13), col, rot=(R90 - 0.1, 0, 0), seg=12)
+    n.detail = 2.6  # chunky stitches: this is a giant sock
+    body = Node('body', n, (0, 0.0, 0), surface=MAT_KNIT)
+    RED_Y, CREAM_Y, BLUE_Y, GOLD_Y, GREEN_Y = 0xd8342c, 0xf3ead6, 0x2f6fd6, 0xe2b21e, 0x4f9a4a
+    stripes = [BLUE_Y, CREAM_Y, GOLD_Y, CREAM_Y, RED_Y, CREAM_Y, GREEN_Y, CREAM_Y]
+
+    def paint(t, a):
+        if t < 0.13:
+            return CREAM_Y  # ribbed cuff
+        if t < 0.165:
+            return RED_Y
+        if t < 0.43:
+            return CREAM_Y  # plain band for the face
+        if 0.63 < t < 0.8 and math.cos(a) < 0.35:
+            return RED_Y  # heel patch (back side of the bend)
+        if t > 0.86:
+            return RED_Y  # toe
+        return stripes[int((t - 0.43) / 0.05) % len(stripes)]
+
+    path = [(0, 1.08, -0.1), (0, 0.88, -0.1), (0, 0.66, -0.095), (0, 0.44, -0.08), (0, 0.25, -0.05),
+            (0, 0.15, 0.05), (0, 0.13, 0.2), (0, 0.13, 0.33)]
+    radii = [0.2, 0.198, 0.195, 0.19, 0.18, 0.16, 0.145, 0.125]
+    body.sweep(path, radii, CREAM_Y, seg=28, steps=7, start='open', end='dome', paint=paint,
+               ribs=lambda t: 0.035 if t < 0.13 else 0.0, rim=(0.035, 0.3, 0x4a2e22))
+    # face on the front of the leg
+    fz = 0.1  # front surface of the tube (tube axis z = -0.1, radius ~0.2)
+    for x, col, r, y in ((-0.085, BLUE_Y, 0.068, 0.74), (0.088, 0xd8342c, 0.054, 0.73)):
+        zz = fz - 0.2 + math.sqrt(max(0.0, 0.2 ** 2 - x * x)) + 0.004
+        yaw = math.asin(x / 0.2)
+        body.lathe([(0.0, 0.0), (r, 0.0), (r * 1.02, 0.012), (r * 0.92, 0.024), (0.0, 0.026)], (x, y, zz),
+                   col, rot=(R90, yaw, 0), seg=18, kind=MAT_GLOSSY)
         for hx, hy in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
-            n.cyl(0.008, 0.028, (x + hx * r * 0.3, 0.72 + hy * r * 0.3, 0.135), BLACK, rot=(R90 - 0.1, 0, 0), seg=5)
-    # thick eyebrows of yarn
-    n.cyl(0.012, 0.11, (-0.075, 0.8, 0.14), 0x6a4a2a, rot=(0, 0, R90 - 0.35), seg=5)
-    n.cyl(0.012, 0.1, (0.08, 0.79, 0.14), 0x6a4a2a, rot=(0, 0, R90 + 0.25), seg=5)
-    # stitched wobbly mouth
-    for i in range(7):
-        x = -0.07 + i * 0.023
-        yy = 0.58 + 0.012 * math.sin(i * 1.3)
-        n.box((0.02, 0.006, 0.01), (x, yy, 0.175), BLACK, rot=(0, 0, 0.6 if i % 2 else -0.6))
-    # darned patch with cross stitches
-    n.box((0.12, 0.12, 0.01), (-0.15, 0.45, 0.08), 0x7a9a4a, rot=(0, -0.9, 0.15))
-    for k in range(3):
-        n.box((0.1, 0.008, 0.012), (-0.155, 0.41 + k * 0.04, 0.085), 0xf2e6c8, rot=(0, -0.9, 0.7))
-    # knitting-needle staff with a yarn ball on top
-    n.cylb(0.012, 1.05, (0.3, 0.0, 0.05), 0xb9c0c8, seg=6)
-    n.sphere(0.07, (0.3, 1.08, 0.05), 0x9b44c9, ico=1, wonk=0.006)
-    n.sphere(0.025, (0.3, 1.16, 0.05), 0xfff4a0, seg=6, rings=4, kind=MAT_EMIT)
+            body.cyl(r * 0.13, 0.01, (x + hx * r * 0.32 * math.cos(yaw), y + hy * r * 0.32, zz + 0.024), 0x1d1e22,
+                     rot=(R90, yaw, 0), seg=8, kind=MAT_GLOSSY)
+        # thread cross through the holes
+        body.box((r * 0.9, 0.006, 0.006), (x, y, zz + 0.029), 0xf3ead6, rot=(0, yaw, 0.785))
+        body.box((r * 0.9, 0.006, 0.006), (x, y, zz + 0.029), 0xf3ead6, rot=(0, yaw, -0.785))
+    # bushy yarn eyebrows
+    body.sweep([(-0.15, 0.82, 0.058), (-0.1, 0.852, 0.09), (-0.04, 0.84, 0.1)], [0.014, 0.019, 0.013],
+               0x6a4a2a, kind=MAT_HAIR, seg=8, steps=4)
+    body.sweep([(0.045, 0.828, 0.1), (0.095, 0.842, 0.093), (0.145, 0.82, 0.062)], [0.013, 0.018, 0.014],
+               0x6a4a2a, kind=MAT_HAIR, seg=8, steps=4)
+    # stitched wobbly smile: a thick red yarn with little cross stitches
+    smile = [(-0.085, 0.605, 0.083), (-0.04, 0.585, 0.098), (0.01, 0.585, 0.1), (0.055, 0.6, 0.093), (0.09, 0.62, 0.077)]
+    body.sweep(smile, [0.009] * len(smile), 0x8a2020, kind=MAT_KNIT, seg=8, steps=4)
+    for i in range(1, 4):
+        x, y, z = smile[i]
+        body.box((0.006, 0.04, 0.006), (x, y, z + 0.006), 0xf3ead6, rot=(0, 0, 0.5))
+    # darned patch with cross stitches on the side
+    body.lathe([(0.0, 0.0), (0.07, 0.0), (0.075, 0.008), (0.0, 0.012)], (-0.17, 0.45, -0.02), 0x7a9a4a,
+               rot=(0, -1.1, R90), seg=10, kind=MAT_FABRIC)
+    for kx in range(3):
+        body.box((0.09, 0.006, 0.006), (-0.182, 0.42 + kx * 0.03, 0.0), 0xf2e6c8, rot=(0, -1.1, 0.6))
+    # knitting-needle staff standing beside the sock, with a yarn ball on top
+    body.sweep([(0.4, 0.0, -0.06), (0.4, 1.1, -0.06)], [0.013, 0.011], 0xb9c0c8, kind=MAT_METAL, seg=10,
+               steps=2, start='flat', end='dome')
+    body.blob(0.075, (0.4, 1.15, -0.06), 0x9b44c9, kind=MAT_KNIT, detail=3)
+    body.sweep([(0.4, 1.15, -0.135), (0.37, 1.22, -0.1), (0.4, 1.23, -0.02), (0.44, 1.18, 0.0)], [0.012] * 4,
+               0x9b44c9, kind=MAT_KNIT, seg=8, steps=4)
+    body.blob(0.022, (0.4, 1.25, -0.06), 0xfff4a0, kind=MAT_EMIT, detail=2)
     # magic sparkles
     rng = random.Random(4)
-    for i in range(9):
+    for i in range(7):
         a = rng.random() * 6.28
-        r = rng.uniform(0.3, 0.45)
-        n.sphere(0.012, (math.cos(a) * r, rng.uniform(0.3, 1.1), math.sin(a) * r), 0xfff0a0, seg=5, rings=3, kind=MAT_EMIT)
+        r = rng.uniform(0.32, 0.45)
+        body.blob(0.01, (math.cos(a) * r, rng.uniform(0.35, 1.1), math.sin(a) * r), 0xfff0a0, kind=MAT_EMIT, detail=1)
     # tuna-can stage
-    n.cylb(0.32, 0.07, (0, -0.07, 0), 0xb9c0c8, seg=16)
-    n.cyl(0.33, 0.015, (0, -0.005, 0), 0x8e969f, seg=16)
-    n.box((0.3, 0.05, 0.004), (0, -0.035, 0.32), 0x2f6fd6)  # the tuna label
+    n.lathe([(0.0, -0.07), (0.315, -0.07), (0.325, -0.065), (0.325, -0.005), (0.315, 0.0), (0.29, 0.0), (0.29, -0.006),
+             (0.0, -0.006)], (0, 0, 0), 0xb9c0c8, seg=32, kind=MAT_METAL)
+    for yy in (-0.055, -0.02):
+        n.lathe([(0.327, yy), (0.329, yy + 0.004), (0.327, yy + 0.008)], (0, 0, 0), 0x8e969f, seg=32, kind=MAT_METAL,
+                cap_bottom=False, cap_top=False)
+    # the tuna label wraps the can (a band just outside it)
+    n.lathe([(0.3265, -0.05), (0.3265, -0.025)], (0, 0, 0), 0x2f6fd6, seg=32, kind=MAT_GLOSSY,
+            cap_bottom=False, cap_top=False)
     n.col_boxb((0.6, 1.0, 0.55), (0, -0.07, 0))
     n.marker('ANCHOR', 'talk', (0, 0, 0.7), size=(1, 1, 1), scale_size=False)
     marker_light(n, 'glow', (0, 0.9, 0.4), 0xffd8a0, 2.5, 0.9)
