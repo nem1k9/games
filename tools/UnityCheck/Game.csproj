@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Compiles the Unity game scripts against real UnityEngine reference assemblies (2021.3 modules). -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>Gnomes.Game</AssemblyName>
+    <DefineConstants>$(UnityDefines)</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="UnityEngine.Modules" Version="2021.3.33" PrivateAssets="all" ExcludeAssets="runtime" />
+    <Compile Include="$(RepoRoot)Assets/Scripts/Game/**/*.cs" />
+    <ProjectReference Include="Core.csproj" />
+    <ProjectReference Include="Net.csproj" />
+    <Reference Include="LiteNetLib">
+      <HintPath>$(RepoRoot)Assets/Plugins/LiteNetLib/LiteNetLib.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+</Project>

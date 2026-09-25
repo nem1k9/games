@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Compiles Assets/Editor against UnityEditor reference assemblies. -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>Gnomes.Editor</AssemblyName>
+    <DefineConstants>$(UnityDefines);UNITY_EDITOR</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="UnityEngine.Modules" Version="2021.3.33" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Include="Unity3D.SDK" Version="2021.1.14.1" PrivateAssets="all" ExcludeAssets="runtime" />
+    <Compile Include="$(RepoRoot)Assets/Editor/**/*.cs" />
+    <ProjectReference Include="Game.csproj" />
+    <ProjectReference Include="Core.csproj" />
+  </ItemGroup>
+</Project>

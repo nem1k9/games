@@ -1,0 +1,13 @@
+<Project>
+  <PropertyGroup>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <NoWarn>CS1701;CS1702;CS0649;CS0414</NoWarn>
+    <RepoRoot>$(MSBuildThisFileDirectory)../../</RepoRoot>
+    <UnityDefines>UNITY_2021_3_OR_NEWER;UNITY_STANDALONE;ENABLE_LEGACY_INPUT_MANAGER;UNITY_COMPILE_CHECK</UnityDefines>
+  </PropertyGroup>
+</Project>
