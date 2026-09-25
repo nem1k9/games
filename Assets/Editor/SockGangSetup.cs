@@ -37,6 +37,12 @@ namespace Gnomes.EditorTools
             if (EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) EditorSceneManager.OpenScene(ScenePath);
         }
 
+        /// <summary>Called before every player build (also from batch-mode CI builds).</summary>
+        public static void EnsureForBuild()
+        {
+            if (EnsureMaterials() | EnsureScene() | EnsureBuildScenes()) AssetDatabase.SaveAssets();
+        }
+
         static void Run(bool verbose)
         {
             bool changed = EnsureMaterials();
@@ -86,12 +92,21 @@ namespace Gnomes.EditorTools
         static bool EnsureMaterial(string name, string[] shaders, System.Action<Material> setup)
         {
             string path = MaterialsDir + "/" + name + ".mat";
-            if (AssetDatabase.LoadAssetAtPath<Material>(path) != null) return false;
             Shader shader = null;
             foreach (var s in shaders)
             {
                 shader = Shader.Find(s);
                 if (shader != null) break;
+            }
+            var existing = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (existing != null)
+            {
+                // the repo ships these materials; make sure they point at the right built-in shader
+                if (shader == null || (existing.shader != null && System.Array.IndexOf(shaders, existing.shader.name) >= 0)) return false;
+                existing.shader = shader;
+                setup?.Invoke(existing);
+                EditorUtility.SetDirty(existing);
+                return true;
             }
             if (shader == null)
             {

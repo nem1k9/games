@@ -37,6 +37,8 @@ def meta_for(rel: str, is_dir: bool) -> str:
                        '      settings: {}\n  userData: \n  assetBundleName: \n  assetBundleVariant: \n')
     if ext in ('.json', '.txt', '.bytes', '.md'):
         return head + 'TextScriptImporter:\n  externalObjects: {}\n  userData: \n  assetBundleName: \n  assetBundleVariant: \n'
+    if ext == '.mat':
+        return head + 'NativeFormatImporter:\n  externalObjects: {}\n  mainObjectFileID: 2100000\n  userData: \n  assetBundleName: \n  assetBundleVariant: \n'
     if ext == '.unity':
         return head + 'DefaultImporter:\n  externalObjects: {}\n  userData: \n  assetBundleName: \n  assetBundleVariant: \n'
     # FBX / PNG / WAV: minimal meta, our AssetPostprocessor configures the importer.

@@ -41,6 +41,18 @@
 
 Готовая игра собирается через меню **Sock Gang → Build → Windows / Linux / macOS**. Результат появится в `Builds/`.
 
+### Сборка без установки Unity (GitHub Actions)
+
+Workflow **Build game** собирает игру для Windows и Linux на серверах GitHub. Готовый архив можно скачать со страницы запуска.
+Нужна бесплатная лицензия Unity Personal, один раз:
+1. Установите Unity Hub, войдите в аккаунт и активируйте Personal-лицензию.
+2. В репозитории откройте **Settings → Secrets and variables → Actions** и добавьте три секрета:
+   - `UNITY_LICENSE` — содержимое файла лицензии: Windows — `C:\ProgramData\Unity\Unity_lic.ulf`, macOS — `/Library/Application Support/Unity/Unity_lic.ulf`;
+   - `UNITY_EMAIL` — почта аккаунта Unity;
+   - `UNITY_PASSWORD` — пароль аккаунта Unity.
+3. Запустите: **Actions → Build game → Run workflow**.
+4. Через 20–40 минут в разделе **Artifacts** появятся `SockGang-StandaloneWindows64` и `SockGang-StandaloneLinux64`.
+
 > Нужен встроенный рендер-пайплайн (Built-in). Если проект случайно открылся с URP,
 > материалы всё равно найдутся (есть запасные шейдеры), но картинка будет хуже.
 
