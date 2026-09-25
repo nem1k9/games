@@ -22,6 +22,7 @@ crashlytics-build.properties
 *.csproj.user
 *.sln
 !/tools/**/*.sln
+!/godot/*.sln
 *.suo
 *.userprefs
 # Unity-generated csproj at repo root (our own tool projects live in tools/ and Tests/)
