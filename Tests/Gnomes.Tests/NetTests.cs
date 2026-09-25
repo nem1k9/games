@@ -91,7 +91,7 @@ namespace Gnomes.Tests
             Assert.Equal(new byte[] { 0, 128, 255 }, s2.Mechs);
             Assert.True(w.Length < 100 * 22 + 200, "snapshot too big: " + w.Length);
 
-            var l = new LoadLevelMsg { Level = LevelKind.House, Seed = 99, Night = 3, Save = new SaveData { Night = 3 }.Serialize(), TaskIds = new[] { "flush", "loot30" }, TaskProgress = new[] { 0, 12 }, Spores = 2, TimeLeft = 400 };
+            var l = new LoadLevelMsg { Level = LevelKind.House, Seed = 99, Night = 3, Save = new SaveData { Night = 3 }.Serialize(), TaskIds = new[] { "flush", "loot30" }, TaskProgress = new[] { 0, 12 }, SpareHats = 2, TimeLeft = 400 };
             l.Props.Add(new PropSpawn { Id = 5, Kind = "dentures", Pos = new V3(1, 2, 3), Rot = Q4.identity });
             l.Players.Add(new PlayerInfo { Id = 0, Name = "Хост", Hat = 2, Status = PlayerStatus.Free });
             l.BrokenFurniture.Add(3);
@@ -126,13 +126,15 @@ namespace Gnomes.Tests
             Assert.Equal(17, a2.Id);
             Assert.Equal("", a2.S);
 
-            var rep = new NightReport { Night = 2, TaskIds = new[] { "flush", "breakTv" }, TaskDone = new[] { true, false }, TasksDone = 1, Passed = false, HaulValue = 33, Gnomium = 2, Fired = true };
+            var rep = new NightReport { Night = 2, TaskIds = new[] { "flush", "breakTv" }, TaskDone = new[] { true, false }, TasksDone = 1, Passed = false, HaulValue = 33, Giggles = 2, Chaos = 14, Fired = true };
             rep.Haul[3] = 7;
             var rep2 = ReportCodec.Decode(ReportCodec.Encode(rep));
             Assert.Equal(2, rep2.Night);
             Assert.Equal(new[] { "flush", "breakTv" }, rep2.TaskIds);
             Assert.Equal(new[] { true, false }, rep2.TaskDone);
             Assert.Equal(33, rep2.HaulValue);
+            Assert.Equal(14, rep2.Chaos);
+            Assert.Equal(2, rep2.Giggles);
             Assert.Equal(7, rep2.Haul[3]);
             Assert.True(rep2.Fired);
         }

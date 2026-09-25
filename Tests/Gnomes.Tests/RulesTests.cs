@@ -58,7 +58,7 @@ namespace Gnomes.Tests
         [Fact]
         public void TaskProgressFromEvents()
         {
-            var tr = new TaskTracker(new[] { TaskCatalog.Get("smashPlates"), TaskCatalog.Get("flush"), TaskCatalog.Get("loot30"), TaskCatalog.Get("remoteFridge") });
+            var tr = new TaskTracker(new[] { TaskCatalog.Get("smashPlates"), TaskCatalog.Get("flush"), TaskCatalog.Get("loot60"), TaskCatalog.Get("remoteFridge"), TaskCatalog.Get("chaos10"), TaskCatalog.Get("tieSlippers") });
             Assert.Empty(tr.Apply(GameEvent.Broken("mug")));
             Assert.Empty(tr.Apply(GameEvent.Broken("plate")));
             Assert.Empty(tr.Apply(GameEvent.Broken("plate")));
@@ -67,17 +67,26 @@ namespace Gnomes.Tests
             Assert.Equal(new[] { 1 }, tr.Apply(GameEvent.Flushed("sock")));
             Assert.Empty(tr.Apply(GameEvent.InZone("oven", "remote")));
             Assert.Equal(new[] { 3 }, tr.Apply(GameEvent.InZone("fridge", "remote")));
-            for (int i = 0; i < 4; i++) tr.Apply(GameEvent.Banked("goldBar", 8));
+            for (int i = 0; i < 8; i++) tr.Apply(GameEvent.Banked("goldBar", 8));
             Assert.True(tr.IsDone(2));
-            Assert.Equal(4, tr.CompletedCount);
-            Assert.Equal(4 + 2 + 4 + 4, tr.GnomiumEarned); // tiers 2,1,2,2 -> 2 gnomium per tier
+            // chaos is a level, not a sum: 6 then 4 must not complete a goal of 10
+            tr.Apply(GameEvent.Chaos(6));
+            tr.Apply(GameEvent.Chaos(4));
+            Assert.False(tr.IsDone(4));
+            Assert.Equal(6, tr.Progress[4]);
+            Assert.Equal(new[] { 4 }, tr.Apply(GameEvent.Chaos(11)));
+            // tying a slipper to a sock is not tying the slippers together
+            Assert.Empty(tr.Apply(GameEvent.Tied("slipper", "sock")));
+            Assert.Equal(new[] { 5 }, tr.Apply(GameEvent.Tied("slipper", "slipper")));
+            Assert.Equal(6, tr.CompletedCount);
+            Assert.Equal(4 + 2 + 6 + 4 + 4 + 4, tr.GigglesEarned); // tiers 2,1,3,2,2,2 -> 2 giggles per tier
         }
 
         [Fact]
         public void NightStateBanksAndReports()
         {
             var ns = new NightState(1, 123, 1, GearEffects.From(new SaveData()));
-            Assert.Equal(GameConsts.SporesSolo, ns.Spores);
+            Assert.Equal(GameConsts.SpareHatsSolo, ns.SpareHats);
             ns.Bank("goldBar");
             ns.Bank("sock");
             Assert.Equal(ItemDefs.Get("goldBar").Value + 1, ns.HaulValue);
@@ -94,19 +103,20 @@ namespace Gnomes.Tests
         public void CraftingSpendsMaterialsAndGearChangesStats()
         {
             var s = new SaveData();
-            var boots = GearCatalog.Get(GearId.SpringBoots);
-            Assert.False(s.Craft(GearId.SpringBoots));
+            var gaiters = GearCatalog.Get(GearId.HopperGaiters);
+            Assert.False(s.Craft(GearId.HopperGaiters));
             for (int i = 0; i < 6; i++) s.Materials[i] = 10;
-            Assert.True(s.Craft(GearId.SpringBoots));
-            Assert.False(s.Craft(GearId.SpringBoots)); // already owned
-            Assert.Equal(10 - boots.Cost[1], s.Materials[1]);
-            Assert.False(s.Craft(GearId.GrapplingArms)); // needs stretchy arms first
-            Assert.True(s.Craft(GearId.SleepPotion));
-            Assert.True(s.Craft(GearId.SleepPotion));
+            Assert.True(s.Craft(GearId.HopperGaiters));
+            Assert.False(s.Craft(GearId.HopperGaiters)); // already owned
+            Assert.Equal(10 - gaiters.Cost[1], s.Materials[1]);
+            Assert.False(s.Craft(GearId.EndlessYarn)); // needs long yarn first
+            Assert.True(s.Craft(GearId.SleepDust));
+            Assert.True(s.Craft(GearId.SleepDust));
             Assert.Equal(2, s.Potions);
             var fx = GearEffects.From(s);
-            Assert.Equal(GameConsts.SpringJumpSpeed, fx.JumpSpeed);
-            Assert.Equal(GameConsts.ArmMax, fx.ArmMax);
+            Assert.Equal(GameConsts.HopperJumpSpeed, fx.JumpSpeed);
+            Assert.Equal(GameConsts.YarnRange, fx.YarnRange);
+            Assert.False(fx.Parachute);
         }
 
         [Fact]
@@ -114,12 +124,12 @@ namespace Gnomes.Tests
         {
             var s = new SaveData { Night = 4, Strikes = 1, Potions = 2 };
             s.Materials[3] = 17;
-            s.Gear.Add(GearId.SneakySocks);
+            s.Gear.Add(GearId.QuietBooties);
             var s2 = SaveData.Deserialize(s.Serialize());
             Assert.Equal(4, s2.Night);
             Assert.Equal(1, s2.Strikes);
             Assert.Equal(17, s2.Materials[3]);
-            Assert.True(s2.Has(GearId.SneakySocks));
+            Assert.True(s2.Has(GearId.QuietBooties));
             Assert.Equal(2, s2.Potions);
 
             var bad = new NightReport { Passed = false };
@@ -128,12 +138,12 @@ namespace Gnomes.Tests
             Assert.True(s2.ApplyReport(bad)); // third strike
             Assert.Equal(1, s2.Night);
             Assert.Equal(0, s2.Materials[3]);
-            Assert.True(s2.Has(GearId.SneakySocks)); // gear survives getting fired
+            Assert.True(s2.Has(GearId.QuietBooties)); // gear survives getting fired
             Assert.Equal(1, s2.TimesFired);
 
             var garbage = SaveData.Deserialize("night=abc\nmat9=5\ngear=1,99,x\n");
             Assert.Equal(1, garbage.Night);
-            Assert.True(garbage.Has(GearId.StretchyArms));
+            Assert.True(garbage.Has(GearId.LongYarn));
         }
 
         [Fact]
@@ -149,9 +159,10 @@ namespace Gnomes.Tests
                 else Assert.Contains(L.Rooms, r => r.Id == it.Room);
             }
             // task-critical items are always present
-            foreach (var k in new[] { "dentures", "glasses", "remote", "vase", "watch", "piggyBank", "trophy", "catBowl", "trashBin", "goldBar", "alarmClock", "hearingAid" })
+            foreach (var k in new[] { "dentures", "glasses", "remote", "vase", "watch", "piggyBank", "trophy", "catBowl", "trashBin", "goldBar", "alarmClock", "hearingAid", "keys", "towel", "toiletPaper", "duck" })
                 Assert.Contains(L.Items, i => i.Kind == k);
             Assert.True(L.Items.Count(i => i.Kind == "sock") >= 3);
+            Assert.Equal(2, L.Items.Count(i => i.Kind == "slipper"));
             Assert.True(L.Items.Count(i => i.Kind == "plate") >= 3);
             // windows got window models
             Assert.Equal(6, L.Furniture.Count(f => f.Model == "window"));
@@ -162,6 +173,40 @@ namespace Gnomes.Tests
             // same seed, same layout
             var L2 = HouseLayout.Generate(1234);
             Assert.Equal(L.Items.Select(i => i.Kind + i.Furniture + i.Room), L2.Items.Select(i => i.Kind + i.Furniture + i.Room));
+        }
+    }
+}
+
+namespace Gnomes.Tests
+{
+    public class MeshGenTests
+    {
+        [Fact]
+        public void WallSlabFacesPointOutwardsWithCorrectWinding()
+        {
+            var size = new Gnomes.Core.V3(8, 10, 0.6f);
+            var m = Gnomes.Core.Level.MeshGen.WallSlab(size, 3, 0, 5);
+            Assert.Equal(3, m.SubMeshes.Count);
+            Assert.Equal(24, m.Positions.Count);
+            int tris = 0;
+            foreach (var sub in m.SubMeshes)
+            {
+                for (int t = 0; t < sub.Count; t += 3)
+                {
+                    var a = m.Positions[sub[t]];
+                    var b = m.Positions[sub[t + 1]];
+                    var c = m.Positions[sub[t + 2]];
+                    var n = m.Normals[sub[t]];
+                    var cross = Gnomes.Core.V3.Cross(b - a, c - a);
+                    Assert.True(Gnomes.Core.V3.Dot(cross, n) > 0, "triangle winding opposite to its normal");
+                    // normals point away from the slab centre
+                    var centre = (a + b + c) / 3f;
+                    Assert.True(Gnomes.Core.V3.Dot(centre, n) > 0, "normal points inwards");
+                    tris++;
+                }
+            }
+            Assert.Equal(12, tris);
+            Assert.All(m.Uvs, u => Assert.False(float.IsNaN(u)));
         }
     }
 }

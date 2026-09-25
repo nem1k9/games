@@ -249,9 +249,6 @@ MODELS = {
     'gardenLamp': garden_lamp,
     'fence': fence,
     'roof': roof,
-    'hubIsland': hub_island,
-    'craftBench': craft_bench,
-    'portal': portal,
     'lantern': lantern,
     'signpost': signpost,
 }

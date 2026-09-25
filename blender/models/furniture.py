@@ -648,6 +648,7 @@ def plant(s=1.0, name='plant'):
     n = root(name)
     n.cyl(0.13 * s, 0.35 * s, (0, 0.175 * s, 0), TERRA, r2=0.18 * s, seg=8)
     n.col_boxb((0.3 * s, 0.35 * s, 0.3 * s))
+    zone(n, 'plantPot', (0, 0.4 * s, 0), (0.34 * s, 0.14 * s, 0.34 * s))
     n.sphere(0.28 * s, (0, 0.6 * s, 0), LEAF, scale=(1, 1.2, 1), ico=1, wonk=0.03 * s)
     n.sphere(0.2 * s, (0.15 * s, 0.85 * s, 0.05), 0x4fa152, ico=1, wonk=0.03 * s)
     n.sphere(0.18 * s, (-0.12 * s, 0.8 * s, -0.08), 0x357a3a, ico=1, wonk=0.03 * s)
@@ -660,6 +661,7 @@ def cat_bed():
     n.cylb(0.24, 0.04, (0, 0, 0), 0xb599c4, seg=12)
     n.props['noNav'] = 1
     anchor(n, 'rest', (0, 0.05, 0))
+    zone(n, 'catBed', (0, 0.08, 0), (0.44, 0.14, 0.44))
     return n
 
 
@@ -804,7 +806,5 @@ MODELS = {
     'ceilingLamp': ceiling_lamp,
     'wallShelf': wall_shelf,
     'fireplace': fireplace,
-    'mushroomHouse': mushroom_house,
-    'stashBasket': stash_basket,
     'window': window,
 }

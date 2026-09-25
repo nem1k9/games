@@ -32,7 +32,7 @@ def all_models():
     import characters
     registry = {}
     registry.update(characters.MODELS)
-    for mod in ('furniture', 'items', 'environment'):
+    for mod in ('furniture', 'items', 'environment', 'sockgang'):
         try:
             m = __import__(mod)
             registry.update(m.MODELS)

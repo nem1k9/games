@@ -7,15 +7,16 @@ namespace Gnomes.Core.Rules
 {
     public enum GearId : byte
     {
-        SpringBoots = 0,
-        StretchyArms = 1,
-        GrapplingArms = 2,
-        StrongMittens = 3,
-        SneakySocks = 4,
-        BigSack = 5,
-        SporePouch = 6,
-        SleepPotion = 7, // consumable
-        NightGoggles = 8,
+        HopperGaiters = 0, // jump higher
+        LongYarn = 1, // yarn hook reaches further
+        EndlessYarn = 2, // even further (needs LongYarn)
+        StrongMittens = 3, // carry heavier things
+        QuietBooties = 4, // silent steps
+        BigPocket = 5, // +2 pocket slots
+        SpareHat = 6, // +1 revive per night
+        SleepDust = 7, // consumable: puts grandpa to sleep
+        OwlGoggles = 8, // see in the dark
+        ParachuteHat = 9, // glide by holding jump in the air
     }
 
     public sealed class GearDef
@@ -45,12 +46,12 @@ namespace Gnomes.Core.Rules
                 int n = int.Parse(part.Substring(i));
                 switch (part.Substring(0, i))
                 {
-                    case "plasto": g.Cost[0] += n; break;
-                    case "clonk": g.Cost[1] += n; break;
-                    case "fluff": g.Cost[2] += n; break;
-                    case "glint": g.Cost[3] += n; break;
-                    case "munch": g.Cost[4] += n; break;
-                    case "gnomium": g.Cost[5] += n; break;
+                    case "buttons": g.Cost[0] += n; break;
+                    case "bolts": g.Cost[1] += n; break;
+                    case "yarn": g.Cost[2] += n; break;
+                    case "glitter": g.Cost[3] += n; break;
+                    case "crumbs": g.Cost[4] += n; break;
+                    case "giggles": g.Cost[5] += n; break;
                     default: throw new ArgumentException(part);
                 }
             }
@@ -60,15 +61,16 @@ namespace Gnomes.Core.Rules
 
         static GearCatalog()
         {
-            G(GearId.SpringBoots, "Ботинки-пружинки", "Spring boots", "Прыжок намного выше", "Jump much higher", "clonk4 plasto3");
-            G(GearId.StretchyArms, "Тянучие рукавицы", "Stretchy mittens", "Руки вытягиваются дальше", "Arms reach further", "plasto4 fluff3");
-            G(GearId.GrapplingArms, "Руки-крюки", "Grappling arms", "Очень длинные руки", "Very long arms", "clonk6 plasto3 gnomium6", false, GearId.StretchyArms);
-            G(GearId.StrongMittens, "Силачьи варежки", "Mighty mittens", "Поднимаешь вещи в 1.6 раза тяжелее", "Lift 1.6x heavier things", "fluff4 clonk3 gnomium2");
-            G(GearId.SneakySocks, "Шерстяные носочки", "Sneaky socks", "Шаги почти не слышно", "Footsteps are almost silent", "fluff6");
-            G(GearId.BigSack, "Большой мешок", "Big sack", "+2 места в карманах", "+2 pocket slots", "fluff4 glint2");
-            G(GearId.SporePouch, "Мешочек спор", "Spore pouch", "+1 воскрешение за ночь", "+1 revive per night", "munch4 glint3 gnomium4");
-            G(GearId.NightGoggles, "Гномьи очки", "Gnome goggles", "Лучше видно в темноте", "See better in the dark", "glint4 plasto2");
-            G(GearId.SleepPotion, "Сонное зелье", "Sleep potion", "Кинь в деда (G) — уснёт на 25 сек", "Throw at grandpa (G) — sleeps for 25s", "munch3 glint1", true);
+            G(GearId.ParachuteHat, "Колпак-парашют", "Parachute hat", "Держи Пробел в воздухе — плавно планируешь", "Hold Space in the air to glide", "yarn5 buttons2");
+            G(GearId.LongYarn, "Длинная пряжа", "Long yarn", "Клубок-крюк летит дальше", "The yarn hook reaches further", "yarn6 bolts2");
+            G(GearId.EndlessYarn, "Бесконечный клубок", "Endless yarn", "Клубок-крюк летит очень далеко", "The yarn hook reaches very far", "yarn8 glitter3 giggles6", false, GearId.LongYarn);
+            G(GearId.StrongMittens, "Силачьи варежки", "Mighty mittens", "Носишь вещи в 1.6 раза тяжелее", "Carry 1.6x heavier things", "yarn4 bolts3 giggles2");
+            G(GearId.QuietBooties, "Тихие пинетки", "Quiet booties", "Шагов почти не слышно", "Footsteps are almost silent", "yarn6");
+            G(GearId.BigPocket, "Большой карман", "Big pocket", "+2 места в карманах", "+2 pocket slots", "yarn4 buttons3");
+            G(GearId.HopperGaiters, "Кузнечиковые гетры", "Hopper gaiters", "Прыгаешь намного выше", "Jump much higher", "yarn3 bolts4");
+            G(GearId.SpareHat, "Запасной колпак", "Spare hat", "+1 возрождение за ночь", "+1 revive per night", "yarn5 crumbs3 giggles4");
+            G(GearId.OwlGoggles, "Совиные очки", "Owl goggles", "Лучше видно в темноте", "See better in the dark", "glitter4 buttons2");
+            G(GearId.SleepDust, "Сонная пыльца", "Sleep dust", "Кинь в деда (G) — уснёт на 25 сек", "Throw at grandpa (G) — sleeps for 25s", "crumbs3 glitter1", true);
         }
 
         public static GearDef Get(GearId id) => All.Find(g => g.Id == id);
@@ -77,30 +79,32 @@ namespace Gnomes.Core.Rules
     /// <summary>Numeric effects of owned gear.</summary>
     public struct GearEffects
     {
-        public float JumpSpeed, ArmMax, StrengthMul, FootstepNoiseMul, DarkVision;
-        public int PocketSize, BonusSpores;
+        public float JumpSpeed, YarnRange, StrengthMul, FootstepNoiseMul, DarkVision;
+        public int PocketSize, BonusHats;
+        public bool Parachute;
 
         public static GearEffects From(SaveData s)
         {
             var e = new GearEffects
             {
                 JumpSpeed = GameConsts.JumpSpeed,
-                ArmMax = GameConsts.ArmMax,
+                YarnRange = GameConsts.YarnRange,
                 StrengthMul = 1f,
                 FootstepNoiseMul = 1f,
                 PocketSize = GameConsts.PocketSize,
-                BonusSpores = 0,
+                BonusHats = 0,
                 DarkVision = 0,
             };
             if (s == null) return e;
-            if (s.Has(GearId.SpringBoots)) e.JumpSpeed = GameConsts.SpringJumpSpeed;
-            if (s.Has(GearId.StretchyArms)) e.ArmMax = GameConsts.ArmMaxStretchy;
-            if (s.Has(GearId.GrapplingArms)) e.ArmMax = GameConsts.ArmMaxGrapple;
+            if (s.Has(GearId.HopperGaiters)) e.JumpSpeed = GameConsts.HopperJumpSpeed;
+            if (s.Has(GearId.LongYarn)) e.YarnRange = GameConsts.YarnRangeLong;
+            if (s.Has(GearId.EndlessYarn)) e.YarnRange = GameConsts.YarnRangeEndless;
             if (s.Has(GearId.StrongMittens)) e.StrengthMul = 1.6f;
-            if (s.Has(GearId.SneakySocks)) e.FootstepNoiseMul = 0.35f;
-            if (s.Has(GearId.BigSack)) e.PocketSize += 2;
-            if (s.Has(GearId.SporePouch)) e.BonusSpores = 1;
-            if (s.Has(GearId.NightGoggles)) e.DarkVision = 1;
+            if (s.Has(GearId.QuietBooties)) e.FootstepNoiseMul = 0.35f;
+            if (s.Has(GearId.BigPocket)) e.PocketSize += 2;
+            if (s.Has(GearId.SpareHat)) e.BonusHats = 1;
+            if (s.Has(GearId.OwlGoggles)) e.DarkVision = 1;
+            e.Parachute = s.Has(GearId.ParachuteHat);
             return e;
         }
     }
@@ -141,7 +145,7 @@ namespace Gnomes.Core.Rules
             for (int i = 0; i < 6; i++) Materials[i] -= g.Cost[i];
             if (g.Consumable)
             {
-                if (id == GearId.SleepPotion) Potions++;
+                if (id == GearId.SleepDust) Potions++;
             }
             else Gear.Add(id);
             return true;
@@ -151,13 +155,13 @@ namespace Gnomes.Core.Rules
         public bool ApplyReport(NightReport r)
         {
             for (int i = 0; i < 5; i++) Materials[i] += r.Haul[i];
-            Materials[(int)Mat.Gnomium] += r.Gnomium;
+            Materials[(int)Mat.Giggles] += r.Giggles;
             TotalLoot += r.HaulValue;
             Potions = Math.Max(0, Potions - r.PotionsUsed);
             if (!r.Passed) Strikes++;
             if (Strikes >= GameConsts.MaxStrikes)
             {
-                // Fired: the High-Gnome takes the stash and makes you start over. Gear is kept.
+                // Disbanded: the Great Sock confiscates the stash and the gang starts over. Gear is kept.
                 TimesFired++;
                 Night = 1;
                 Strikes = 0;
@@ -229,7 +233,8 @@ namespace Gnomes.Core.Rules
         public bool Passed;
         public int[] Haul = new int[6];
         public int HaulValue;
-        public int Gnomium;
+        public int Giggles;
+        public int Chaos; // items left out of their room at dawn
         public int ItemsStolen;
         public int TimesCaught;
         public int Deaths;
@@ -248,7 +253,8 @@ namespace Gnomes.Core.Rules
         public readonly int[] Haul = new int[6];
         public int HaulValue;
         public int ItemsStolen;
-        public int Spores;
+        public int SpareHats;
+        public int Chaos;
         public int TimesCaught;
         public int Deaths;
         public int PotionsUsed;
@@ -260,7 +266,7 @@ namespace Gnomes.Core.Rules
             Night = night;
             Seed = seed;
             Tasks = new TaskTracker(TaskCatalog.PickForNight(night, seed));
-            Spores = (players <= 1 ? GameConsts.SporesSolo : GameConsts.SporesCoop) + gear.BonusSpores;
+            SpareHats = (players <= 1 ? GameConsts.SpareHatsSolo : GameConsts.SpareHatsCoop) + gear.BonusHats;
         }
 
         /// <summary>0 at midnight .. 1 at dawn.</summary>
@@ -298,7 +304,8 @@ namespace Gnomes.Core.Rules
                 TaskDone = new bool[Tasks.Tasks.Count],
                 TasksDone = Tasks.CompletedCount,
                 HaulValue = HaulValue,
-                Gnomium = Tasks.GnomiumEarned,
+                Giggles = Tasks.GigglesEarned + Chaos / 2,
+                Chaos = Chaos,
                 ItemsStolen = ItemsStolen,
                 TimesCaught = TimesCaught,
                 Deaths = Deaths,

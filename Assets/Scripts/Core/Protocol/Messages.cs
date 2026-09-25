@@ -24,17 +24,19 @@ namespace Gnomes.Core.Protocol
     {
         Free = 0,
         Carried = 1, // held by the old man
-        Trapped = 2, // locked in the oven / freezer
-        Dead = 3,
+        Trapped = 2, // pickled in a jar on grandpa's shelf
+        Dead = 3, // flattened by the fly swatter (a ghost until the hat reaches the yarn basket)
         Home = 4, // left the house (finished the night early)
     }
 
     public enum ArmMode : byte
     {
         Idle = 0,
-        HoldProp = 1, // Anchor = prop-local grab point
-        Climb = 2, // Anchor = world point on static geometry
-        Reach = 3, // reaching into the air
+        HoldProp = 1, // carrying a prop in the hands: Anchor = prop-local grab point, Hand = hold target
+        Climb = 2, // yarn hooked onto the world: Anchor = world hook point, Hand = yarn length in x
+        Reach = 3, // hands reaching forward (kick / empty grab)
+        YarnProp = 4, // yarn hooked onto a prop: Anchor = prop-local hook point, Hand.x = yarn length
+        YarnFly = 5, // yarn hook in flight: Anchor = start, Hand = current hook position
     }
 
     [Flags]
@@ -118,10 +120,12 @@ namespace Gnomes.Core.Protocol
         GoHome = 8, // I = 1 vote to leave, 0 cancel
         Craft = 9, // I = gear id
         PortalReady = 10, // I = 1/0
-        Potion = 11, // A = pos, B = velocity
+        Potion = 11, // A = pos, B = velocity (sleep dust)
         Chat = 12, // S = text
         Honk = 13, // funny gnome noise
         Release = 14, // Id = prop released (for instant host update)
+        Tie = 15, // tie yarn: Id = prop A (or 0), I = target kind (0 prop,1 world), A = world point A, B = world point B, S = "propB id" when tying to a prop
+        Unscrew = 16, // Id = jar mech index (hold E on a lid)
     }
 
     public struct ActionMsg
@@ -210,7 +214,7 @@ namespace Gnomes.Core.Protocol
         public string Save = ""; // SaveData.Serialize() of the host
         public string[] TaskIds = Array.Empty<string>();
         public int[] TaskProgress = Array.Empty<int>();
-        public int Spores;
+        public int SpareHats;
         public float TimeLeft;
         public List<PropSpawn> Props = new List<PropSpawn>();
         public List<PlayerInfo> Players = new List<PlayerInfo>();
@@ -229,7 +233,7 @@ namespace Gnomes.Core.Protocol
                 w.Str(TaskIds[i]);
                 w.I32(i < TaskProgress.Length ? TaskProgress[i] : 0);
             }
-            w.U8((byte)Spores);
+            w.U8((byte)SpareHats);
             w.F32(TimeLeft);
             w.U16((ushort)Props.Count);
             foreach (var p in Props)
@@ -268,7 +272,7 @@ namespace Gnomes.Core.Protocol
                 m.TaskIds[i] = r.Str();
                 m.TaskProgress[i] = r.I32();
             }
-            m.Spores = r.U8();
+            m.SpareHats = r.U8();
             m.TimeLeft = r.F32();
             int pc = r.U16();
             for (int i = 0; i < pc; i++)
@@ -413,7 +417,7 @@ namespace Gnomes.Core.Protocol
         PlayerJoined = 10, // P = id, S = name, I = hat
         PlayerLeft = 11, // P = id
         FurnitureBroken = 12, // Id = furniture index
-        Spores = 13, // I = spores left
+        SpareHats = 13, // I = spare hats left
         Chat = 14, // P = id, S = text
         Mech = 15, // Id = mech index, I = state (instant change)
         Banked = 16, // S = kind, I = value (haul notification)
@@ -470,7 +474,8 @@ namespace Gnomes.Core.Protocol
                 "done=" + r.TasksDone,
                 "pass=" + (r.Passed ? 1 : 0),
                 "value=" + r.HaulValue,
-                "gnomium=" + r.Gnomium,
+                "giggles=" + r.Giggles,
+                "chaos=" + r.Chaos,
                 "items=" + r.ItemsStolen,
                 "caught=" + r.TimesCaught,
                 "deaths=" + r.Deaths,
@@ -501,7 +506,8 @@ namespace Gnomes.Core.Protocol
                     case "done": r.TasksDone = n; break;
                     case "pass": r.Passed = n == 1; break;
                     case "value": r.HaulValue = n; break;
-                    case "gnomium": r.Gnomium = n; break;
+                    case "giggles": r.Giggles = n; break;
+                    case "chaos": r.Chaos = n; break;
                     case "items": r.ItemsStolen = n; break;
                     case "caught": r.TimesCaught = n; break;
                     case "deaths": r.Deaths = n; break;

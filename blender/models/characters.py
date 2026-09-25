@@ -303,8 +303,6 @@ def roomba():
 
 MODELS = {
     'gnome': gnome,
-    'highGnome': high_gnome,
     'oldMan': old_man,
     'cat': cat,
-    'roomba': roomba,
 }

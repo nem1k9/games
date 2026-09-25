@@ -92,7 +92,8 @@ namespace Gnomes.Core.Level
         public List<Placement> Furniture = new List<Placement>();
         public List<ItemSpawn> Items = new List<ItemSpawn>();
         public List<Decor> Garden = new List<Decor>();
-        public V3 Mushroom;
+        public V3 Mushroom; // yarn basket where fallen gnomes are re-knitted
+        public V3 Porch; // porch (village entrance) front centre
         public V3 StashCenter, StashSize;
         public List<V3> Spawns = new List<V3>();
         public V3 GnomeHole;
@@ -210,6 +211,7 @@ namespace Gnomes.Core.Level
             F("catBed", 8.55f, 3.9f, "kitchen", "catBed");
             F("wallShelf", 12.0f, 0.13f, "kitchen", "kitchenShelf", 0, 1.6f);
             F("ceilingLamp", 10.6f, 2.6f, "kitchen", "ceilKitchen", 0, H, ("on", 0));
+            F("jarShelf", 8.9f, 4.37f, "kitchen", "jarShelf", PI, 1.3f); // grandpa pickles gnomes up here
             // Hallway
             F("grandfatherClock", 13.6f, 5.25f, "hallway", "clock", -R90);
             F("coatRack", 0.35f, 5.25f, "hallway");
@@ -231,6 +233,7 @@ namespace Gnomes.Core.Level
             F("fireplace", 2.7f, 6.33f, "living", "fireplace");
             F("plantBig", 0.4f, 9.55f, "living");
             F("ceilingLamp", 4.5f, 8f, "living", "ceilLiving", 0, H, ("on", 0));
+            F("parrotCage", 4.3f, 9.55f, "living", "parrotCage", PI);
             // Study
             F("desk", 11.2f, 9.55f, "study", "desk", PI);
             F("bookshelf", 13.8f, 7.0f, "study", "bookshelfS1", -R90);
@@ -240,6 +243,25 @@ namespace Gnomes.Core.Level
             F("tableLampGreen", 10.75f, 9.65f, "study", "lampDesk", 0, 0.765f, ("on", 1));
             F("rugStudy", 11.5f, 8.0f, "study");
             F("ceilingLamp", 11.5f, 8f, "study", "ceilStudy", 0, H, ("on", 0));
+
+            // Hazards: mousetraps and creaky floorboards at seeded spots
+            var trapSpots = new List<(float x, float z, string room)>
+            {
+                (9.2f, 1.6f, "kitchen"), (12.3f, 3.7f, "kitchen"), (5.7f, 4.9f, "hallway"), (9.8f, 5.3f, "hallway"),
+                (1.2f, 5.5f, "hallway"), (3.3f, 8.8f, "living"), (7.9f, 7.0f, "living"), (12.8f, 6.8f, "study"),
+                (3.9f, 3.9f, "bedroom"), (6.9f, 3.7f, "bathroom"),
+            };
+            rng.Shuffle(trapSpots);
+            for (int i = 0; i < 4; i++)
+                F("mousetrap", trapSpots[i].x, trapSpots[i].z, trapSpots[i].room, "mousetrap" + i, rng.Range(0, 6.28f));
+            var creakSpots = new List<(float x, float z, string room)>
+            {
+                (2.4f, 5.2f, "hallway"), (6.4f, 5.3f, "hallway"), (10.9f, 5.2f, "hallway"), (4.3f, 7.0f, "living"),
+                (2.6f, 8.6f, "living"), (11.8f, 7.4f, "study"), (2.4f, 3.6f, "bedroom"),
+            };
+            rng.Shuffle(creakSpots);
+            for (int i = 0; i < 4; i++)
+                F("creakyBoard", creakSpots[i].x, creakSpots[i].z, creakSpots[i].room, "creak" + i, rng.Chance(0.5f) ? 0 : R90);
 
             // Windows (sash window models fitted into the wall openings)
             foreach (var w in Walls)
@@ -307,6 +329,9 @@ namespace Gnomes.Core.Level
             S("apple", "kitchenTable");
             S("bread", "counterB");
             S("telephone", "hallTable");
+            S("keys", "hallTable");
+            S("towel", "bathShelf");
+            S("teacup", rng.Pick(new[] { "coffeeTable", "kitchenTable" }));
             S("photoFrame", "hallTable");
             S("candle", "fireplace");
             S("photoFrame", "fireplace");
@@ -349,19 +374,18 @@ namespace Gnomes.Core.Level
 
         void BuildGarden(int seed)
         {
-            Mushroom = new V3(2.6f * HS, 0, 12.6f * HS);
-            StashCenter = new V3(4.3f * HS, 0.3f * HS, 11.5f * HS);
+            // The gang arrives from the village under the porch (south side of the house).
+            Porch = new V3(7.5f * HS, 0, 10.0f * HS);
+            Mushroom = new V3(5.6f * HS, 0, 12.3f * HS); // the yarn basket (revive point)
+            StashCenter = new V3(9.4f * HS, 0.3f * HS, 12.3f * HS); // the matchbox cart
             StashSize = new V3(0.7f * HS, 0.6f * HS, 0.55f * HS);
             for (int i = 0; i < 6; i++)
-            {
-                double a = Math.PI * 0.15 + i / 6.0 * Math.PI * 0.9;
-                Spawns.Add(new V3(Mushroom.x + (float)Math.Cos(a) * 3.4f, 0.1f, Mushroom.z - (float)Math.Sin(a) * 3.4f));
-            }
+                Spawns.Add(new V3((6.3f + i * 0.45f) * HS, 0.1f, 12.0f * HS));
             var g = new Rng(seed ^ 0x5eed);
             for (int i = 0; i < 30; i++)
             {
                 float x = g.Range(-2.6f, 16.6f), z = g.Range(10.8f, 16.5f);
-                if (Dist2(x, z, 2.6f, 12.6f) < 1.4f * 1.4f || Dist2(x, z, 4.3f, 11.5f) < 0.9f * 0.9f || (x > 1.1f && x < 3.3f && z < 11.8f)) continue;
+                if ((x > 4.8f && x < 10.3f && z < 13.2f) || (x > 1.1f && x < 3.3f && z < 11.8f)) continue; // keep the porch area & gnome hole clear
                 float t = g.Next();
                 string model = t < 0.4f ? "flowers" : t < 0.7f ? "bush" : t < 0.85f ? "rock" : "toadstool";
                 Garden.Add(new Decor { Model = model, Pos = new V3(x * HS, 0, z * HS), RotY = g.Range(0, 6.28f), Scale = g.Range(0.7f, 1.3f) });

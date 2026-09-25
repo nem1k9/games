@@ -14,6 +14,10 @@ namespace Gnomes.Core.Rules
         FurnitureBroken = 5, // static furniture destroyed (Kind = furniture model)
         Tipped = 6, // an item fell over (Kind)
         Caught = 7, // a gnome got caught by the old man
+        Tied = 8, // two things tied together with yarn (Kind, Role = second kind or furniture)
+        Unrolled = 9, // a toilet paper roll got unrolled across the floor
+        Chaos = 10, // Value = how many items are currently out of their room
+        Silenced = 11, // the parrot got covered / bribed
     }
 
     public struct GameEvent
@@ -32,6 +36,20 @@ namespace Gnomes.Core.Rules
         public static GameEvent InZone(string zone, string kind) => new GameEvent { Type = Ev.InZone, Zone = zone, Kind = kind };
         public static GameEvent FurnitureBroken(string kind) => new GameEvent { Type = Ev.FurnitureBroken, Kind = kind };
         public static GameEvent Tipped(string kind) => new GameEvent { Type = Ev.Tipped, Kind = kind };
+        public static GameEvent Tied(string a, string b) => new GameEvent { Type = Ev.Tied, Kind = a, Role = b };
+        public static GameEvent Unrolled(string kind) => new GameEvent { Type = Ev.Unrolled, Kind = kind };
+        public static GameEvent Chaos(int misplaced) => new GameEvent { Type = Ev.Chaos, Value = misplaced };
+        public static GameEvent Silenced(string how) => new GameEvent { Type = Ev.Silenced, Kind = how };
+
+        public bool ItemsTied(string tagA, string tagB)
+        {
+            if (Type != Ev.Tied) return false;
+            bool a1 = HasTag(Kind, tagA), b1 = HasTag(Role, tagB);
+            bool a2 = HasTag(Kind, tagB), b2 = HasTag(Role, tagA);
+            return (a1 && b1) || (a2 && b2);
+        }
+
+        static bool HasTag(string kind, string tag) => kind != null && ItemDefs.TryGet(kind, out var d) && d.HasTag(tag);
 
         public bool ItemHasTag(string tag) => Kind != null && ItemDefs.TryGet(Kind, out var d) && d.HasTag(tag);
     }
@@ -45,7 +63,7 @@ namespace Gnomes.Core.Rules
         public int MinNight = 1;
         public Func<GameEvent, int> Progress; // returns how much progress this event gives
         public string[] ConflictsWith = Array.Empty<string>();
-        public int Reward => Tier * 2; // gnomium
+        public int Reward => Tier * 2; // giggles
         public string Text(Lang l) => l == Lang.Ru ? Ru : En;
     }
 
@@ -64,42 +82,48 @@ namespace Gnomes.Core.Rules
 
         static TaskCatalog()
         {
+            // The Great Sock's list of pranks. Tier 1 = easy, 2 = medium, 3 = hard.
             // ---- easy ----
             T("flush", 1, "Смыть что-нибудь в унитаз", "Flush something down the toilet", e => If(e.Type == Ev.Flushed));
-            T("openWindow", 1, "Открыть окно", "Open a window", e => If(e.Type == Ev.Mech && e.Role == "window" && e.On));
-            T("turnOnTv", 1, "Включить телевизор", "Turn on the TV", e => If(e.Type == Ev.Mech && e.Role == "tvPower" && e.On));
-            T("floodBath", 1, "Устроить потоп: открыть кран в ванне", "Flood the bath: turn on the tap", e => If(e.Type == Ev.Mech && e.Role == "tubFaucet" && e.On));
-            T("breakVase", 1, "Разбить вазу", "Smash the vase", e => If(e.Type == Ev.Broken && e.ItemHasTag("vase")));
-            T("feedFish", 1, "Покормить рыбок (еду в аквариум)", "Feed the fish (food into the tank)", e => If(e.Type == Ev.InZone && e.Zone == "fishTank" && e.ItemHasTag("food")));
+            T("tvNight", 1, "Включить деду телевизор посреди ночи", "Turn the TV on in the middle of the night", e => If(e.Type == Ev.Mech && e.Role == "tvPower" && e.On));
+            T("floodBath", 1, "Открыть кран в ванне и уйти", "Turn on the bath tap and walk away", e => If(e.Type == Ev.Mech && e.Role == "tubFaucet" && e.On));
+            T("duckToilet", 1, "Искупать уточку в унитазе", "Give the rubber duck a bath in the toilet", e => If(e.Type == Ev.InZone && e.Zone == "toiletBowl" && e.ItemHasTag("duck")));
+            T("feedFish", 1, "Покормить рыбок (любую еду в аквариум)", "Feed the fish (any food into the tank)", e => If(e.Type == Ev.InZone && e.Zone == "fishTank" && e.ItemHasTag("food")));
             T("knockTrash", 1, "Опрокинуть мусорное ведро", "Knock over the trash bin", e => If(e.Type == Ev.Tipped && e.ItemHasTag("trashBin")));
-            T("duckToilet", 1, "Искупать уточку в унитазе", "Give the duck a bath in the toilet", e => If(e.Type == Ev.InZone && e.Zone == "toiletBowl" && e.ItemHasTag("duck")));
-            T("stealAlarm", 1, "Украсть будильник", "Steal the alarm clock", e => If(e.Type == Ev.Banked && e.ItemHasTag("alarmClock")));
-            T("stealSocks", 1, "Украсть 3 носка", "Steal 3 socks", e => If(e.Type == Ev.Banked && e.ItemHasTag("sock")), 3);
+            T("socks", 1, "Утащить в деревню 3 одиноких носка", "Bring 3 lonely socks to the village", e => If(e.Type == Ev.Banked && e.ItemHasTag("sock")), 3);
+            T("openWindow", 1, "Открыть окно — пусть дед померзнет", "Open a window so grandpa gets chilly", e => If(e.Type == Ev.Mech && e.Role == "window" && e.On));
+            T("unroll", 1, "Раскатать туалетную бумагу по полу", "Unroll the toilet paper across the floor", e => If(e.Type == Ev.Unrolled));
+            T("alarmClock", 1, "Утащить будильник (пусть проспит)", "Steal the alarm clock (let him oversleep)", e => If(e.Type == Ev.Banked && e.ItemHasTag("alarmClock")));
 
             // ---- medium ----
-            T("breakTv", 2, "Разбить телевизор", "Break the TV", e => If(e.Type == Ev.FurnitureBroken && e.Kind == "tv"));
-            T("stealDentures", 2, "Украсть вставную челюсть", "Steal the dentures", e => If(e.Type == Ev.Banked && e.ItemHasTag("dentures")));
-            T("stealGlasses", 2, "Украсть очки деда (он станет хуже видеть)", "Steal grandpa's glasses (he'll see worse)", e => If(e.Type == Ev.Banked && e.ItemHasTag("glasses")));
-            T("smashPlates", 2, "Разбить 3 тарелки", "Smash 3 plates", e => If(e.Type == Ev.Broken && e.ItemHasTag("plate")), 3);
+            T("glassesFish", 2, "Спрятать очки деда в аквариум", "Hide grandpa's glasses in the fish tank", e => If(e.Type == Ev.InZone && e.Zone == "fishTank" && e.ItemHasTag("glasses")));
+            T("glassesPlant", 2, "Спрятать очки деда в цветочный горшок", "Hide grandpa's glasses in a flower pot", e => If(e.Type == Ev.InZone && e.Zone == "plantPot" && e.ItemHasTag("glasses")));
             T("remoteFridge", 2, "Спрятать пульт в холодильник", "Hide the TV remote in the fridge", e => If(e.Type == Ev.InZone && e.Zone == "fridge" && e.ItemHasTag("remote")));
-            T("catBowlOven", 2, "Засунуть кошачью миску в духовку", "Put the cat bowl in the oven", e => If(e.Type == Ev.InZone && e.Zone == "oven" && e.ItemHasTag("catBowl")));
-            T("stealWatch", 2, "Украсть золотые часы", "Steal the gold watch", e => If(e.Type == Ev.Banked && e.ItemHasTag("watch")));
+            T("denturesCat", 2, "Положить вставную челюсть в кошачью лежанку", "Put the dentures in the cat's bed", e => If(e.Type == Ev.InZone && e.Zone == "catBed" && e.ItemHasTag("dentures")));
+            T("tieSlippers", 2, "Связать дедовы тапки пряжей", "Tie grandpa's slippers together with yarn", e => If(e.ItemsTied("slipper", "slipper")));
+            T("catBowlOven", 2, "Спрятать кошачью миску в духовку", "Hide the cat bowl in the oven", e => If(e.Type == Ev.InZone && e.Zone == "oven" && e.ItemHasTag("catBowl")));
+            T("keysFreezer", 2, "Спрятать ключи деда в морозилку", "Hide grandpa's keys in the freezer", e => If(e.Type == Ev.InZone && e.Zone == "freezer" && e.ItemHasTag("keys")));
+            T("smashPlates", 2, "Разбить 3 тарелки", "Smash 3 plates", e => If(e.Type == Ev.Broken && e.ItemHasTag("plate")), 3);
             T("piggyBank", 2, "Разбить копилку", "Smash the piggy bank", e => If(e.Type == Ev.Broken && e.ItemHasTag("piggyBank")));
-            T("stealSlippers", 2, "Украсть 2 тапка", "Steal 2 slippers", e => If(e.Type == Ev.Banked && e.ItemHasTag("slipper")), 2);
-            T("stealHearingAid", 2, "Украсть слуховой аппарат (он станет хуже слышать)", "Steal the hearing aid (he'll hear worse)", e => If(e.Type == Ev.Banked && e.ItemHasTag("hearingAid")));
-            T("loot30", 2, "Натащить добра на 30 материалов", "Stash loot worth 30 materials", e => e.Type == Ev.Banked ? e.Value : 0, 30);
+            T("breakTv", 2, "Сломать телевизор", "Break the TV", e => If(e.Type == Ev.FurnitureBroken && e.Kind == "tv"));
+            T("hearingAid", 2, "Утащить слуховой аппарат (дед станет хуже слышать)", "Steal the hearing aid (he'll hear worse)", e => If(e.Type == Ev.Banked && e.ItemHasTag("hearingAid")));
+            T("coverParrot", 2, "Заткнуть попугая Кешу (полотенце или печенька)", "Shut up Kesha the parrot (towel or cookie)", e => If(e.Type == Ev.Silenced));
+            T("chaos10", 2, "Устроить переполох: 10 вещей не на своих местах", "Chaos: 10 things out of place", e => e.Type == Ev.Chaos ? e.Value : 0, 10);
 
             // ---- hard ----
-            T("crackSafe", 3, "Вскрыть сейф (колоти по замку)", "Crack the safe (keep hitting the lock)", e => If(e.Type == Ev.Mech && e.Role == "safe" && e.On), 1, 2);
-            T("stealTrophy", 3, "Украсть золотой кубок (тяжёлый!)", "Steal the golden trophy (heavy!)", e => If(e.Type == Ev.Banked && e.ItemHasTag("trophy")));
-            T("stealGold", 3, "Украсть слиток золота из сейфа", "Steal the gold bar from the safe", e => If(e.Type == Ev.Banked && e.ItemHasTag("gold")), 1, 2);
-            T("loot60", 3, "Натащить добра на 60 материалов", "Stash loot worth 60 materials", e => e.Type == Ev.Banked ? e.Value : 0, 60, 2);
-            T("stealToaster", 3, "Украсть тостер (вдвоём легче)", "Steal the toaster (easier with a friend)", e => If(e.Type == Ev.Banked && e.Kind == "toaster"));
+            T("crackSafe", 3, "Вскрыть сейф (пинать замок)", "Crack the safe (kick the lock)", e => If(e.Type == Ev.Mech && e.Role == "safe" && e.On), 1, 2);
+            T("stealTrophy", 3, "Утащить в деревню золотой кубок (тяжёлый!)", "Bring the golden trophy to the village (heavy!)", e => If(e.Type == Ev.Banked && e.ItemHasTag("trophy")));
+            T("stealToaster", 3, "Утащить тостер (вдвоём легче)", "Steal the toaster (easier with a friend)", e => If(e.Type == Ev.Banked && e.Kind == "toaster"));
+            T("loot60", 3, "Натаскать в деревню добра на 60", "Bring loot worth 60 to the village", e => e.Type == Ev.Banked ? e.Value : 0, 60, 2);
+            T("chaos20", 3, "Большой переполох: 20 вещей не на своих местах", "Big chaos: 20 things out of place", e => e.Type == Ev.Chaos ? e.Value : 0, 20, 2);
+            T("tieGrandpa", 3, "Привязать тапок деда к мебели", "Tie grandpa's slipper to the furniture", e => If(e.Type == Ev.Tied && (e.ItemHasTag("slipper") && e.Role == "furniture")), 1, 2);
 
-            Get("loot30").ConflictsWith = new[] { "loot60" };
-            Get("loot60").ConflictsWith = new[] { "loot30" };
-            Get("crackSafe").ConflictsWith = new[] { "stealGold" };
-            Get("stealGold").ConflictsWith = new[] { "crackSafe" };
+            Get("glassesFish").ConflictsWith = new[] { "glassesPlant" };
+            Get("glassesPlant").ConflictsWith = new[] { "glassesFish" };
+            Get("chaos10").ConflictsWith = new[] { "chaos20" };
+            Get("chaos20").ConflictsWith = new[] { "chaos10" };
+            Get("tieSlippers").ConflictsWith = new[] { "tieGrandpa" };
+            Get("tieGrandpa").ConflictsWith = new[] { "tieSlippers" };
         }
 
         public static TaskDef Get(string id)
@@ -172,13 +196,14 @@ namespace Gnomes.Core.Rules
                 if (IsDone(i)) continue;
                 int p = Tasks[i].Progress(e);
                 if (p <= 0) continue;
-                Progress[i] = Math.Min(Tasks[i].Goal, Progress[i] + p);
+                if (e.Type == Ev.Chaos) Progress[i] = Math.Min(Tasks[i].Goal, Math.Max(Progress[i], p)); // a level, not a sum
+                else Progress[i] = Math.Min(Tasks[i].Goal, Progress[i] + p);
                 if (IsDone(i)) done.Add(i);
             }
             return done;
         }
 
-        public int GnomiumEarned
+        public int GigglesEarned
         {
             get
             {
