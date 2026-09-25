@@ -49,6 +49,7 @@ namespace Gnomes.NPC
         Vector3 lastPosClient;
         Vector3 velClient;
         float walkPhase;
+        float blockedTime; // chasing a gnome he can't get at
 
         public St Mode => (St)State;
         public Vector3 HandPos => handR ? handR.position + handR.rotation * new Vector3(0, -0.5f, 0.1f) : transform.position + Vector3.up * 4f;
@@ -278,6 +279,11 @@ namespace Gnomes.NPC
                     if (stateTime > 25f)
                     {
                         col.enabled = true;
+                        if (agent != null)
+                        {
+                            agent.enabled = true; // was switched off when he nodded off
+                            if (NavMesh.SamplePosition(transform.position, out var hit, 4f, NavMesh.AllAreas)) agent.Warp(hit.position);
+                        }
                         SetState(St.Search);
                         Look = transform.position + transform.forward * 5f;
                     }
@@ -482,23 +488,29 @@ namespace Gnomes.NPC
             }
             Go(g.transform.position, GameConsts.OldManRun);
             float flat = (g.transform.position - transform.position).Flat().magnitude;
-            if (flat <= GameConsts.OldManReach + 0.4f && g.transform.position.y <= GameConsts.OldManGrabMaxHeight)
+            if (flat > GameConsts.OldManReach + 0.4f)
             {
-                if (H.IsHidden(g))
-                {
-                    // can't reach under the bed: grumble and give up after a while
-                    if (stateTime > 3f)
-                    {
-                        W.EmitSound(SoundId.Grumble, Eye, 1f);
-                        anger++;
-                        targetId = 255;
-                        SetState(St.Search);
-                    }
-                    return;
-                }
-                if (anger >= 2 || H.FreeJar() < 0) SetState(St.Swat);
-                else SetState(St.Grab);
+                blockedTime = 0;
+                return;
             }
+            if (H.IsHidden(g) || g.transform.position.y > GameConsts.OldManGrabMaxHeight)
+            {
+                // under the bed or on top of the wardrobe: grumble and give up after a while
+                blockedTime += dt;
+                if (blockedTime > 3f)
+                {
+                    blockedTime = 0;
+                    W.EmitSound(SoundId.Grumble, Eye, 1f);
+                    anger++;
+                    detect[g.PlayerId] = 0.3f; // he'll need a fresh look before chasing again
+                    targetId = 255;
+                    SetState(St.Search);
+                }
+                return;
+            }
+            blockedTime = 0;
+            if (anger >= 2 || H.FreeJar() < 0) SetState(St.Swat);
+            else SetState(St.Grab);
         }
 
         void Carry()

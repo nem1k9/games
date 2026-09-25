@@ -26,6 +26,7 @@ namespace Gnomes.Session
         readonly Dictionary<ushort, Vector3> paperLast = new Dictionary<ushort, Vector3>();
         readonly HashSet<ushort> unrolled = new HashSet<ushort>();
         readonly Dictionary<ushort, int> holders = new Dictionary<ushort, int>();
+        int[] sentProgress; // task progress the clients already know about
         float zoneTimer, chaosTimer, noiseTimer, portalTimer, allOutTimer;
         bool parrotTowel;
         float parrotQuietUntil;
@@ -83,6 +84,7 @@ namespace Gnomes.Session
             var w = WorldLoader.Build(LevelKind.House, S.Seed, true, S);
             night = new NightState(S.Night, S.Seed, S.Players.Count, Gear);
             w.Night = night;
+            sentProgress = (int[])night.Tasks.Progress.Clone(); // LoadLevel carries the starting values
             S.SpareHats = night.SpareHats;
             homeRoom.Clear();
             hatOwner.Clear();
@@ -226,12 +228,24 @@ namespace Gnomes.Session
         {
             if (night == null) return;
             var done = night.Tasks.Apply(e);
-            for (int i = 0; i < night.Tasks.Tasks.Count; i++)
-                S.Broadcast(new EventMsg { Type = EvType.TaskProgress, P = (byte)i, I = night.Tasks.Progress[i] });
-            foreach (var i in done)
+            SyncTaskProgress();
+            foreach (var i in done) GameApp.I?.OnTaskDone(night.Tasks.Tasks[i]); // clients get it from TaskProgress
+        }
+
+        /// <summary>Send only the task counters that changed (zone checks fire several times a second).</summary>
+        void SyncTaskProgress()
+        {
+            var prog = night.Tasks.Progress;
+            if (sentProgress == null || sentProgress.Length != prog.Length)
             {
-                GameApp.I?.OnTaskDone(night.Tasks.Tasks[i]);
-                W?.EmitSound(SoundId.TaskDone, W.GoHomePoint, 0.01f); // clients play the jingle through OnTaskDone
+                sentProgress = new int[prog.Length];
+                for (int i = 0; i < prog.Length; i++) sentProgress[i] = -1;
+            }
+            for (int i = 0; i < prog.Length; i++)
+            {
+                if (prog[i] == sentProgress[i]) continue;
+                sentProgress[i] = prog[i];
+                S.Broadcast(new EventMsg { Type = EvType.TaskProgress, P = (byte)i, I = prog[i] });
             }
         }
 
@@ -657,8 +671,7 @@ namespace Gnomes.Session
             Fx.Sparkles(w, w.StashZone.transform.position + Vector3.up * 0.5f, new Color32(255, 230, 120, 255), 8);
             S.Broadcast(new EventMsg { Type = EvType.Banked, S = kind, I = p.Def.Value });
             GameApp.I?.OnBanked(kind, p.Def.Value);
-            for (int i = 0; i < night.Tasks.Tasks.Count; i++)
-                S.Broadcast(new EventMsg { Type = EvType.TaskProgress, P = (byte)i, I = night.Tasks.Progress[i] });
+            SyncTaskProgress();
             foreach (var i in done) GameApp.I?.OnTaskDone(night.Tasks.Tasks[i]);
         }
 
@@ -858,9 +871,11 @@ namespace Gnomes.Session
                     if (slot.Status != PlayerStatus.Free || w.Kind != LevelKind.House) return;
                     if (Vector3.Distance(me, w.GoHomePoint) > 5f) return;
                     // stash pockets and step out of the night
-                    foreach (var kind in slot.Pocket) night.Bank(kind);
+                    foreach (var kind in slot.Pocket)
+                        foreach (var i in night.Bank(kind)) GameApp.I?.OnTaskDone(night.Tasks.Tasks[i]);
                     slot.Pocket.Clear();
                     SendPocket(slot);
+                    SyncTaskProgress();
                     SetStatus(slot, PlayerStatus.Home);
                     w.EmitSound(SoundId.Sparkle, w.GoHomePoint, 0.8f);
                     break;

@@ -283,7 +283,11 @@ namespace Gnomes.World
             settings.agentSlope = 40f;
             settings.overrideVoxelSize = true;
             settings.voxelSize = 0.3f;
-            var bounds = new Bounds(new Vector3(28, 5, 20), new Vector3(60, 14, 44));
+            // the house plus a margin, from just below the floor to just under the ceiling (so the
+            // ceiling's top face never becomes walkable and path queries can't snap onto it)
+            var min = new Vector3(L.HouseMin.x - 4f, -1f, L.HouseMin.z - 4f);
+            var max = new Vector3(L.HouseMax.x + 4f, L.WallHeight - 0.2f, L.HouseMax.z + 4f);
+            var bounds = new Bounds((min + max) * 0.5f, max - min);
             var sources = new List<NavMeshBuildSource>();
             var markups = new List<NavMeshBuildMarkup>();
             NavMeshBuilder.CollectSources(bounds, 1 << Layers.Default, NavMeshCollectGeometry.PhysicsColliders, 0, markups, sources);
