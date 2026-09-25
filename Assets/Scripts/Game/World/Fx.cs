@@ -65,7 +65,7 @@ namespace Gnomes.World
         public static void Sparkles(GameWorld w, Vector3 pos, Color32 color, int n = 10, float speed = 3f)
         {
             if (w == null) return;
-            var mat = ModelLibrary.TintMaterial(color);
+            var mat = ModelLibrary.GlowMaterial(color);
             for (int i = 0; i < n; i++)
             {
                 var go = Piece(w.FxRoot, Blob(), mat, pos, Random.Range(0.05f, 0.12f));

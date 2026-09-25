@@ -156,7 +156,8 @@ namespace Gnomes.World
             {
                 if (tvOnMat == null)
                 {
-                    tvOnMat = new Material(ModelLibrary.EmissiveMaterial) { name = "TvOn", mainTexture = null, color = new Color(0.7f, 0.85f, 1f) };
+                    tvOnMat = ModelLibrary.UnlitColor(new Color(0.7f, 0.85f, 1f)); // Unlit/Color: the flicker below tints it
+                    tvOnMat.name = "TvOn";
                     tvBrokenMat = new Material(ModelLibrary.LitMaterial) { name = "TvBroken", mainTexture = null, color = new Color(0.05f, 0.05f, 0.06f) };
                 }
                 if (Broken) screenRenderer.sharedMaterial = tvBrokenMat;

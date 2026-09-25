@@ -25,6 +25,21 @@ namespace Gnomes.Rendering
         public static Material EmissiveMaterial { get { EnsureMaterials(); return emitMat; } }
         public static Material GlassMaterial { get { EnsureMaterials(); return glassMat; } }
 
+        static readonly Dictionary<int, Material> glowMaterials = new Dictionary<int, Material>();
+
+        /// <summary>Shared self-lit material (sparkles, stars): stays visible in the dark house.</summary>
+        public static Material GlowMaterial(Color32 c)
+        {
+            int key = (c.r << 16) | (c.g << 8) | c.b;
+            if (!glowMaterials.TryGetValue(key, out var m) || m == null)
+            {
+                m = UnlitColor(c);
+                m.name = "Glow_" + key.ToString("x6");
+                glowMaterials[key] = m;
+            }
+            return m;
+        }
+
         /// <summary>A new flat unlit material of the given colour (sky objects, markers).</summary>
         public static Material UnlitColor(Color c)
         {
