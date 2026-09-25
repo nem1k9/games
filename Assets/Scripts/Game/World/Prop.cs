@@ -34,6 +34,9 @@ namespace Gnomes.World
 
         static readonly Dictionary<string, Mesh> hullCache = new Dictionary<string, Mesh>();
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics() => hullCache.Clear();
+
         public bool IsHeld => HeldMask != 0;
 
         public static Prop Create(GameWorld world, ushort id, string kind, Vector3 pos, Quaternion rot, bool authority)

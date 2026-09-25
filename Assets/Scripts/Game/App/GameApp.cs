@@ -16,6 +16,17 @@ namespace Gnomes.App
     /// <summary>Starts the game automatically when Play is pressed (no scene setup needed).</summary>
     public static class GameBoot
     {
+        /// <summary>Clear singletons left over from a previous play session when domain reload is off.</summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics()
+        {
+            GameApp.I = null;
+            GameSession.I = null;
+            GameWorld.Current = null;
+            LocalGnome.I = null;
+            Sfx.I = null;
+        }
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot()
         {

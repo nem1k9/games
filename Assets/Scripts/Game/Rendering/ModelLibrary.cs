@@ -25,6 +25,19 @@ namespace Gnomes.Rendering
         public static Material EmissiveMaterial { get { EnsureMaterials(); return emitMat; } }
         public static Material GlassMaterial { get { EnsureMaterials(); return glassMat; } }
 
+        /// <summary>Drop cached runtime assets (needed when "Enter Play Mode" skips the domain reload).</summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics()
+        {
+            models.Clear();
+            meshes.Clear();
+            tintMaterials.Clear();
+            glowMaterials.Clear();
+            palette = null;
+            paletteTex = null;
+            litMat = emitMat = glassMat = tintBase = null;
+        }
+
         static readonly Dictionary<int, Material> glowMaterials = new Dictionary<int, Material>();
 
         /// <summary>Shared self-lit material (sparkles, stars): stays visible in the dark house.</summary>

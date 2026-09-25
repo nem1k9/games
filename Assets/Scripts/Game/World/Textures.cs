@@ -11,6 +11,13 @@ namespace Gnomes.World
         static readonly Dictionary<string, Texture2D> cache = new Dictionary<string, Texture2D>();
         static readonly Dictionary<string, Material> mats = new Dictionary<string, Material>();
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics()
+        {
+            cache.Clear();
+            mats.Clear();
+        }
+
         static float Hash(int x, int y, int seed = 0)
         {
             unchecked

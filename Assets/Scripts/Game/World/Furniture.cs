@@ -32,6 +32,9 @@ namespace Gnomes.World
         float lastHourChime = -1;
         static Material tvOnMat, tvBrokenMat;
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics() => tvOnMat = tvBrokenMat = null;
+
         public string Id => Placement?.Id;
 
         public void Init(ushort index, Placement placement, ModelInstance model)

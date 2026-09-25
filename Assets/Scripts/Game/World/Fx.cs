@@ -8,6 +8,9 @@ namespace Gnomes.World
     {
         static Mesh cube, ico;
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics() => cube = ico = null;
+
         static Mesh Cube()
         {
             if (cube != null) return cube;
