@@ -119,10 +119,12 @@ class Node:
     Positions/rotations are Unity-space, relative to the parent node.
     """
 
-    def __init__(self, name, parent=None, pos=(0, 0, 0), rot=(0, 0, 0), seed=None):
+    def __init__(self, name, parent=None, pos=(0, 0, 0), rot=(0, 0, 0), seed=None, k=None):
         self.name = name
         self.parent = parent
-        self.pos = pos
+        # unit scale: furniture is authored in metres (k = HS), characters in world units (k = 1)
+        self.k = k if k is not None else (parent.k if parent is not None else 1.0)
+        self.pos = tuple(v * self.k for v in pos)
         self.rot = rot
         self.scale = (1, 1, 1)
         self.children = []
@@ -168,6 +170,8 @@ class Node:
     # -- primitives (sizes are full extents, Unity space) --
     def box(self, size, pos=(0, 0, 0), color=0xffffff, rot=(0, 0, 0), bevel=0.0, kind=MAT_OPAQUE, wonk=0.0, taper=None):
         """Box. bevel = chamfer width (local units). taper=(sx,sz) scales the top face."""
+        k = self.k
+        size, pos, bevel, wonk = tuple(v * k for v in size), tuple(v * k for v in pos), bevel * k, wonk * k
         tb = bmesh.new()
         verts = bmesh.ops.create_cube(tb, size=1.0)['verts']
         if taper:
@@ -186,6 +190,9 @@ class Node:
 
     def cyl(self, r, h, pos=(0, 0, 0), color=0xffffff, rot=(0, 0, 0), seg=8, r2=None, kind=MAT_OPAQUE, wonk=0.0, cap=True, smooth=False):
         """Cylinder along local Y centred at pos. r2 = top radius (frustum)."""
+        k = self.k
+        r, h, pos, wonk = r * k, h * k, tuple(v * k for v in pos), wonk * k
+        r2 = None if r2 is None else r2 * k
         tb = bmesh.new()
         verts = bmesh.ops.create_cone(tb, cap_ends=cap, cap_tris=False, segments=seg, radius1=r, radius2=r if r2 is None else r2, depth=h)['verts']
         bmesh.ops.transform(tb, matrix=u2b_matrix(trs_u(pos, rot)), verts=verts)
@@ -200,6 +207,8 @@ class Node:
         return self.cyl(r, h, pos, color, rot=rot, seg=seg, r2=0.0, kind=kind, wonk=wonk)
 
     def sphere(self, r, pos=(0, 0, 0), color=0xffffff, scale=(1, 1, 1), rot=(0, 0, 0), seg=8, rings=5, kind=MAT_OPAQUE, wonk=0.0, ico=0, smooth=False):
+        k = self.k
+        r, pos, wonk = r * k, tuple(v * k for v in pos), wonk * k
         tb = bmesh.new()
         if ico:
             verts = bmesh.ops.create_icosphere(tb, subdivisions=ico, radius=r)['verts']
@@ -210,6 +219,8 @@ class Node:
 
     def torus(self, R, r, pos=(0, 0, 0), color=0xffffff, rot=(0, 0, 0), seg=10, tseg=5, kind=MAT_OPAQUE):
         """Torus lying in the XZ plane (hole along Y)."""
+        k = self.k
+        R, r, pos = R * k, r * k, tuple(v * k for v in pos)
         tb = bmesh.new()
         rings = []
         for i in range(seg):
@@ -233,6 +244,9 @@ class Node:
 
     def lathe(self, profile, pos=(0, 0, 0), color=0xffffff, rot=(0, 0, 0), seg=8, kind=MAT_OPAQUE, wonk=0.0, cap_bottom=True, cap_top=True):
         """Revolve a profile [(radius, y), ...] (bottom to top) around local Y."""
+        k = self.k
+        profile = [(a * k, b * k) for (a, b) in profile]
+        pos, wonk = tuple(v * k for v in pos), wonk * k
         tb = bmesh.new()
         rings = []
         for (rad, y) in profile:
@@ -256,6 +270,9 @@ class Node:
 
     def poly_prism(self, pts2d, depth, pos=(0, 0, 0), color=0xffffff, rot=(0, 0, 0), kind=MAT_OPAQUE, bevel=0.0):
         """Extrude a 2D polygon (x, y) along local Z by depth (centred)."""
+        k = self.k
+        pts2d = [(a * k, b * k) for (a, b) in pts2d]
+        depth, pos, bevel = depth * k, tuple(v * k for v in pos), bevel * k
         tb = bmesh.new()
         front = [tb.verts.new((x, y, depth / 2)) for (x, y) in pts2d]
         back = [tb.verts.new((x, y, -depth / 2)) for (x, y) in pts2d]
@@ -272,9 +289,9 @@ class Node:
         return self._commit(tb, kind, color, fix_normals=True)
 
     # -- markers (exported as special child nodes) --
-    def marker(self, prefix, name, pos=(0, 0, 0), rot=(0, 0, 0), size=(1, 1, 1)):
+    def marker(self, prefix, name, pos=(0, 0, 0), rot=(0, 0, 0), size=(1, 1, 1), scale_size=True):
         n = Node(f'{prefix}_{name}', self, pos, rot)
-        n.scale = size
+        n.scale = tuple(v * self.k for v in size) if scale_size else size
         return n
 
     def col_box(self, size, pos=(0, 0, 0), rot=(0, 0, 0), name=None):
