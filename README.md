@@ -8,6 +8,15 @@
 
 Все модели сделаны с нуля скриптами в **Blender**: низкополигональные, яркие и нарочно смешные.
 
+![Дом деда в разрезе](docs/shots/house_cutaway.png)
+
+| | |
+|---|---|
+| ![Гостиная](docs/shots/house_living.png) | ![Кухня](docs/shots/house_kitchen.png) |
+| ![Крыльцо и лаз](docs/shots/house_porch.png) | ![Великий Носок в деревне под крыльцом](docs/shots/village_sock.png) |
+
+<sub>Уровни собраны скриптом `blender/preview_level.py` по тем же данным и правилам расстановки, что и в игре. В Unity освещение ночное.</sub>
+
 ![Персонажи и мебель](docs/models_sheet.png)
 ![Деревня под крыльцом, банки, попугай, мышеловки](docs/sockgang_sheet.png)
 
@@ -104,14 +113,15 @@ Assets/
 blender/            скрипты моделей (Python + bpy): персонажи, мебель, предметы, деревня
 art/                .blend и .fbx каждой модели (для правок руками)
 docs/               диздок и превью моделей
-Tests/              xUnit-тесты: правила, модели, сеть (настоящий UDP через localhost)
+Tests/              xUnit-тесты: правила, модели, сеть (настоящий UDP через localhost), планировка
+tools/LevelDump/    выгрузка сгенерированного дома в JSON (для превью в Blender)
 tools/UnityCheck/   проверка, что все скрипты Unity компилируются (без самого Unity)
 ```
 
 ### Для разработчиков
 
 ```bash
-# тесты правил, моделей и сети (147 шт.)
+# тесты правил, моделей, сети и планировки дома (307 шт.)
 dotnet test Tests/Gnomes.Tests
 
 # проверить, что игровой и редакторный код компилируется против UnityEngine/UnityEditor
@@ -121,6 +131,11 @@ dotnet build tools/UnityCheck/Editor.csproj
 python3 blender/build.py            # всё: GMDL + FBX + .blend + превью
 python3 blender/build.py gnome cat  # только эти модели
 python3 blender/build.py --sheet    # плюс общая картинка docs/models_sheet.png
+
+# скриншоты уровней без Unity: планировка дома из генератора игры -> сборка и рендер в Blender
+dotnet run --project tools/LevelDump -c Release -- 12345 /tmp/layout.json
+python3 blender/preview_level.py house /tmp/layout.json docs/shots/house_cutaway.png --view=cutaway
+python3 blender/preview_level.py village docs/shots/village.png
 
 # .meta-файлы для новых ассетов (стабильные GUID)
 python3 tools/gen_meta.py

@@ -218,13 +218,13 @@ namespace Gnomes.Core.Level
             F("shoeRack", 1.3f, 4.75f, "hallway", "shoeRack");
             F("hallTable", 7.6f, 4.8f, "hallway", "hallTable");
             F("rugHall", 7f, 5.25f, "hallway");
-            F("plantBig", 12.4f, 5.7f, "hallway");
+            F("plantBig", 12.4f, 5.65f, "hallway");
             F("ceilingLamp", 4f, 5.25f, "hallway", "ceilHall", 0, H, ("on", 1));
             // Living room
             F("tvStand", 8.65f, 8.0f, "living", "tvStand", -R90);
             F("tv", 8.65f, 8.0f, "living", "tv", -R90, 0.5f);
             F("sofa", 5.3f, 8.0f, "living", "sofa", R90);
-            F("armchair", 7.2f, 9.35f, "living", "armchair", PI - 0.5f);
+            F("armchair", 7.2f, 9.25f, "living", "armchair", PI - 0.5f);
             F("coffeeTable", 6.9f, 8.0f, "living", "coffeeTable", R90);
             F("rugLiving", 7.0f, 8.0f, "living");
             F("bookshelf", 0.2f, 7.2f, "living", "bookshelfL", R90);
